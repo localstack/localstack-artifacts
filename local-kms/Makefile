@@ -5,6 +5,7 @@ usage:            ## Show this help
 
 build:            ## Download and build kms-local
 	make build-alpine
+	make build-linux
 	if uname -a | grep Darwin; then make build-osx; fi
 
 build-alpine:
@@ -20,5 +21,16 @@ build-osx:
 	cd $(GOPATH)/src/github.com/nsmithuk/local-kms && go install
 	cp $(GOPATH)/bin/local-kms build/local-kms.osx.bin
 	chmod +x build/local-kms.osx.bin
+
+build-linux:
+	docker run --rm --name kms_tmp -d -it golang:stretch bash
+	docker exec kms_tmp go get github.com/golang/dep/cmd/dep
+	docker exec kms_tmp go get github.com/nsmithuk/local-kms
+	docker exec kms_tmp cd /go/src/github.com/nsmithuk/local-kms && go install
+	docker exec kms_tmp sed -i 's/.*uuid.NewV4().String().*/keyIdObj, _ := uuid.NewV4(); keyId := keyIdObj.String()/' \
+		src/github.com/nsmithuk/local-kms/src/handler/create_key.go
+	docker exec kms_tmp bash -c 'cd /go/src/github.com/nsmithuk/local-kms && go install'
+	docker exec kms_tmp cat /go/bin/local-kms > build/local-kms.linux.bin
+	docker rm -f kms_tmp
 
 .PHONY: build
