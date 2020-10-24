@@ -1,0 +1,32 @@
+plugins {
+  id 'java'
+  id 'application'
+  id 'org.jetbrains.kotlin.jvm' version '1.4.10'
+  id 'com.github.johnrengelman.shadow' version '6.1.0'
+}
+
+repositories {
+    mavenCentral()
+    maven {
+      url 'https://packages.confluent.io/maven'
+    }
+    maven {
+      url 'https://repository.mulesoft.org/nexus/content/repositories/public'
+    }
+}
+
+dependencies {
+    implementation "no.nav:kafka-embedded-env:2.5.0"
+}
+
+shadowJar {
+  minimize()
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = '1.8'
+}
+
+mainClassName = 'Starter'
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
