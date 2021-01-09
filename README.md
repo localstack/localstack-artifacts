@@ -1,2 +1,3 @@
-# localstack-artifacts
-Miscellaneous build artifacts for the LocalStack platform
+# LocalStack Artifacts
+
+Miscellaneous build artifacts for the LocalStack platform.
