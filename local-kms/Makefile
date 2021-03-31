@@ -6,6 +6,7 @@ usage:            ## Show this help
 build:            ## Download and build kms-local
 	make build-alpine
 	make build-linux
+	make build-windows
 	if uname -a | grep Darwin; then make build-osx; fi
 
 build-alpine:
@@ -32,5 +33,13 @@ build-linux:
 	docker exec kms_tmp bash -c 'cd /go/src/github.com/nsmithuk/local-kms && go install'
 	docker exec kms_tmp cat /go/bin/local-kms > build/local-kms.linux.bin
 	docker rm -f kms_tmp
+
+build-windows:
+	mkdir -p build
+	go get github.com/golang/dep/cmd/dep
+	go get github.com/nsmithuk/local-kms
+	go get github.com/konsorten/go-windows-terminal-sequences
+	cd $(GOPATH)/src/github.com/nsmithuk/local-kms && GOOS=windows GOARCH=amd64 go build -o build/local-kms.windows.bin start.go
+	chmod +x build/local-kms.windows.bin
 
 .PHONY: build
