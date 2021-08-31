@@ -5,13 +5,29 @@ test -e dynamodb_local_latest.zip || \
 
 # prepare contents
 rm -rf build/
-mkdir -p build
+mkdir -p build/DynamoDBLocal_lib
+cp -r etc/packages/* build/DynamoDBLocal_lib
 cp dynamodb_local_latest.zip build/
+
+# Unzip package
 (
   cd build
   unzip dynamodb_local_latest.zip
   rm dynamodb_local_latest.zip
-  # remove unused libs
+)
+
+# Patch jetty
+(
+  cd build/DynamoDBLocal_lib
+  classes=$(ls | tr "\n" ":")
+  package_name=$(ls | grep jetty-http-*.jar)
+  javac -cp ${classes} org/eclipse/jetty/http/MimeTypes.java
+  zip -r ${package_name} org/
+)
+
+# remove unused libs
+(
+  cd build
   rm -f DynamoDBLocal_lib/libsqlite4java-linux-aarch64.so
   rm -f DynamoDBLocal_lib/libsqlite4java-linux-i386.so
   rm -f DynamoDBLocal_lib/libsqlite4java-osx.dylib
