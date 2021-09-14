@@ -2,10 +2,8 @@
 
 package no.nav.common.embeddedkafka
 
-import kafka.metrics.KafkaMetricsReporter
 import kafka.server.KafkaConfig
 import kafka.server.KafkaServer
-import kafka.utils.VerifiableProperties
 import no.nav.common.embeddedutils.ServerBase
 import no.nav.common.embeddedutils.ServerStatus
 import no.nav.common.kafkaAdmin
@@ -40,7 +38,7 @@ class KBServer(
         KafkaConfig(kafkaProperties),
         Time.SYSTEM,
         Option.apply(""),
-        KafkaMetricsReporter.startReporters(VerifiableProperties(kafkaProperties))
+        false
     )
 
     override fun start() = when (status) {
@@ -93,8 +91,16 @@ class KBServer(
 
         set(KafkaConfig.BrokerIdProp(), id)
         // Note: code below has been changed to allow binding to 0.0.0.0
-        set(KafkaConfig.ListenersProp(), url.replace("localhost", "0.0.0.0"))
-        set(KafkaConfig.AdvertisedListenersProp(), url)
+        val listeners = System.getenv("KAFKA_LISTENERS") ?: url.replace("localhost", "0.0.0.0")
+        set(KafkaConfig.ListenersProp(), listeners)
+        val advertisedListeners = System.getenv("KAFKA_ADVERTISED_LISTENERS") ?: url
+        set(KafkaConfig.AdvertisedListenersProp(), advertisedListeners)
+        val listenerSecurityProtocols = System.getenv("KAFKA_LISTENER_SECURITY_PROTOCOL_MAP")
+        if (listenerSecurityProtocols != null)
+            set(KafkaConfig.ListenerSecurityProtocolMapProp(), listenerSecurityProtocols)
+        val interBrokerListener = System.getenv("KAFKA_INTER_BROKER_LISTENER_NAME")
+        if (interBrokerListener != null)
+            set(KafkaConfig.InterBrokerListenerNameProp(), interBrokerListener)
 
         set(KafkaConfig.NumNetworkThreadsProp(), 3) // 3
         set(KafkaConfig.NumIoThreadsProp(), 8) // 8
