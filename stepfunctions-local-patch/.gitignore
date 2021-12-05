@@ -2,3 +2,5 @@
 *.iml
 
 lib/
+StepFunctionsLocal.jar
+.java-version

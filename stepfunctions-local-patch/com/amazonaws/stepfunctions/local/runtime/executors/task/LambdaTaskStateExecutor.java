@@ -92,7 +92,7 @@ public class LambdaTaskStateExecutor extends StateExecutor {
         String filteredInput = this.getFilteredInput();
         String effectiveInput = this.getEffectiveInput(this.taskState.getParameters());
 
-        // Small patch to enable invocation of Lambdas across different regions
+        // whummer: Small patch to enable invocation of Lambdas across different regions
         String region = this.lambdaArn.split(":")[3];
         AWSLambda lambdaClient = getClient(region);
 

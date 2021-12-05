@@ -1,0 +1,7 @@
+<aspectj>
+    <aspects>
+        <aspect name="cloud.localstack.StepFunctionsStarter.PersistenceAspect"/>
+        <weaver options="-verbose -showWeaveInfo">
+        </weaver>
+    </aspects>
+</aspectj>
