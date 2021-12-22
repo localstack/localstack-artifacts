@@ -3,6 +3,9 @@ package cloud.localstack;
 import com.amazonaws.services.stepfunctions.model.ExecutionStatus;
 import com.amazonaws.services.stepfunctions.model.StateMachineStatus;
 import com.amazonaws.stepfunctions.local.StepFunctionsLocal;
+import com.amazonaws.stepfunctions.local.dagger.DaggerSfnLocalComponent;
+import com.amazonaws.stepfunctions.local.dagger.SfnLocalComponent;
+import com.amazonaws.stepfunctions.local.http.HttpRequestHandlers;
 import com.amazonaws.stepfunctions.local.http.RequestHandlers;
 import com.amazonaws.stepfunctions.local.model.ActivityModel;
 import com.amazonaws.stepfunctions.local.model.ExecutionModel;
@@ -23,20 +26,33 @@ import com.esotericsoftware.kryo.util.DefaultInstantiatorStrategy;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class StepFunctionsStarter {
     static StepFunctionsLocal INSTANCE;
+
+    // TODO remove!
+//    static ThreadLocal<String> CURRENT_REQUEST_REGION = new ThreadLocal<>();
+//    static String CURRENT_REQUEST_REGION = null;
+
+    // maps region names to RequestHandlers instances
+    static final Map<String, RequestHandlers> REQUEST_HANDLERS = new HashMap<>();
+    // original command line arguments
+    static String[] ARGS;
 
     static class PersistenceState {
         Map<String, StateMachineModel> stateMachines;
@@ -44,6 +60,7 @@ public class StepFunctionsStarter {
         Map<String, ActivityModel> activities;
     }
 
+    // TODO: update storing/loading of persistence state to loop over all entries in REQUEST_HANDLERS (for each region)
     static class PersistenceContext {
         static final PersistenceContext INSTANCE = new PersistenceContext();
         Kryo kryo;
@@ -223,10 +240,67 @@ public class StepFunctionsStarter {
         public void afterDeleteActivity(JoinPoint joinPoint) {
             PersistenceContext.INSTANCE.writeState();
         }
+
+        // TODO remove!
+//        @Around("execution(* com.amazonaws..Execution.run(..))")
+//        public void aroundHandle(ProceedingJoinPoint joinPoint) throws Throwable {
+//            System.out.println("start exec " + joinPoint);
+//            Execution execution = (Execution)joinPoint.getTarget();
+//            Field f = execution.getClass().getDeclaredField("executionModel");
+//            f.setAccessible(true);
+//            ExecutionModel model = (ExecutionModel)f.get(execution);
+//            String region = model.getStateMachineArn().split(":")[3];
+//            System.out.println(region);
+//            System.out.println(Thread.currentThread());
+//            CURRENT_REQUEST_REGION.set("foobar-region-" + region);
+//            Object result = joinPoint.proceed();
+//            System.out.println("exec result " + result);
+//        }
+//        @Around("execution(* com.amazonaws..StartExecution.invoke(..))")
+//        public StartExecutionResult aroundStepFunctionsStartExecution(ProceedingJoinPoint joinPoint) throws Throwable {
+//            String region = CURRENT_REQUEST_REGION;
+//            System.out.println(Thread.currentThread());
+//            System.out.println("aroundStepFunctionsStartExecution " + region);
+//            StartExecutionResult result = (StartExecutionResult)joinPoint.proceed();
+//            System.out.println("exec result " + result);
+//            return result;
+//        }
+
+        @Around("execution(* com.amazonaws..HttpRequestHandlers.handle(..))")
+        public void aroundHttpHandle(ProceedingJoinPoint joinPoint) throws Throwable {
+            HttpRequestHandlers httpHandlers = (HttpRequestHandlers)joinPoint.getTarget();
+            Field f = httpHandlers.getClass().getDeclaredField("requestHandler");
+            f.setAccessible(true);
+
+            // extract region from request
+            HttpServletRequest request = (HttpServletRequest) joinPoint.getArgs()[2];
+            String authHeader = request.getHeader("Authorization");
+            String region = authHeader.split("Credential=")[1].split("/")[2];
+
+            // determine request handler for region
+            RequestHandlers newHandlers = REQUEST_HANDLERS.get(region);
+            if (newHandlers == null) {
+                SfnLocalComponent component = DaggerSfnLocalComponent.builder().build();
+
+                // initialize config from cmd line args
+                component.config().parseArgs(ARGS);
+                newHandlers = component.requestHandlers();
+                REQUEST_HANDLERS.put(region, newHandlers);
+
+                // adjust region in handler
+                component.config().getOptionRegion().setValue(region);
+            }
+
+            // update requestHandler for this request, then proceed with invocation
+            f.set(httpHandlers, newHandlers);
+            joinPoint.proceed();
+        }
+
     }
 
     public static void main(String[] args) {
         INSTANCE = new StepFunctionsLocal();
+        ARGS = args;
 
         // load state from persistence files
         try {
