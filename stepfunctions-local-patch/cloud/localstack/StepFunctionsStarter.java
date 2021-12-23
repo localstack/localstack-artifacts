@@ -1,8 +1,11 @@
 package cloud.localstack;
 
+import com.amazonaws.services.stepfunctions.AWSStepFunctions;
+import com.amazonaws.services.stepfunctions.AWSStepFunctionsClient;
 import com.amazonaws.services.stepfunctions.model.ExecutionStatus;
 import com.amazonaws.services.stepfunctions.model.StateMachineStatus;
 import com.amazonaws.stepfunctions.local.StepFunctionsLocal;
+import com.amazonaws.stepfunctions.local.dagger.ClientModule;
 import com.amazonaws.stepfunctions.local.dagger.DaggerSfnLocalComponent;
 import com.amazonaws.stepfunctions.local.dagger.SfnLocalComponent;
 import com.amazonaws.stepfunctions.local.http.HttpRequestHandlers;
@@ -30,6 +33,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import javax.servlet.http.HttpServletRequest;
@@ -38,19 +42,18 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class StepFunctionsStarter {
     static StepFunctionsLocal INSTANCE;
 
-    // TODO remove!
-//    static ThreadLocal<String> CURRENT_REQUEST_REGION = new ThreadLocal<>();
-//    static String CURRENT_REQUEST_REGION = null;
-
     // maps region names to RequestHandlers instances
-    static final Map<String, RequestHandlers> REQUEST_HANDLERS = new HashMap<>();
+    static final Map<String, SfnLocalComponent> COMPONENT_PER_REGION = new HashMap<>();
+
     // original command line arguments
     static String[] ARGS;
 
@@ -241,31 +244,6 @@ public class StepFunctionsStarter {
             PersistenceContext.INSTANCE.writeState();
         }
 
-        // TODO remove!
-//        @Around("execution(* com.amazonaws..Execution.run(..))")
-//        public void aroundHandle(ProceedingJoinPoint joinPoint) throws Throwable {
-//            System.out.println("start exec " + joinPoint);
-//            Execution execution = (Execution)joinPoint.getTarget();
-//            Field f = execution.getClass().getDeclaredField("executionModel");
-//            f.setAccessible(true);
-//            ExecutionModel model = (ExecutionModel)f.get(execution);
-//            String region = model.getStateMachineArn().split(":")[3];
-//            System.out.println(region);
-//            System.out.println(Thread.currentThread());
-//            CURRENT_REQUEST_REGION.set("foobar-region-" + region);
-//            Object result = joinPoint.proceed();
-//            System.out.println("exec result " + result);
-//        }
-//        @Around("execution(* com.amazonaws..StartExecution.invoke(..))")
-//        public StartExecutionResult aroundStepFunctionsStartExecution(ProceedingJoinPoint joinPoint) throws Throwable {
-//            String region = CURRENT_REQUEST_REGION;
-//            System.out.println(Thread.currentThread());
-//            System.out.println("aroundStepFunctionsStartExecution " + region);
-//            StartExecutionResult result = (StartExecutionResult)joinPoint.proceed();
-//            System.out.println("exec result " + result);
-//            return result;
-//        }
-
         @Around("execution(* com.amazonaws..HttpRequestHandlers.handle(..))")
         public void aroundHttpHandle(ProceedingJoinPoint joinPoint) throws Throwable {
             HttpRequestHandlers httpHandlers = (HttpRequestHandlers)joinPoint.getTarget();
@@ -278,21 +256,20 @@ public class StepFunctionsStarter {
             String region = authHeader.split("Credential=")[1].split("/")[2];
 
             // determine request handler for region
-            RequestHandlers newHandlers = REQUEST_HANDLERS.get(region);
-            if (newHandlers == null) {
-                SfnLocalComponent component = DaggerSfnLocalComponent.builder().build();
+            SfnLocalComponent component = COMPONENT_PER_REGION.get(region);
+            if (component == null) {
+                component = DaggerSfnLocalComponent.builder().build();
 
                 // initialize config from cmd line args
                 component.config().parseArgs(ARGS);
-                newHandlers = component.requestHandlers();
-                REQUEST_HANDLERS.put(region, newHandlers);
 
                 // adjust region in handler
                 component.config().getOptionRegion().setValue(region);
+                COMPONENT_PER_REGION.put(region, component);
             }
 
             // update requestHandler for this request, then proceed with invocation
-            f.set(httpHandlers, newHandlers);
+            f.set(httpHandlers, component.requestHandlers());
             joinPoint.proceed();
         }
 
