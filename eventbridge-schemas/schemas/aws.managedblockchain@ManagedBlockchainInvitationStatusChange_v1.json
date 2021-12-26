@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"ManagedBlockchainInvitationStatusChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Managed Blockchain Invitation Status Change\", \"x-amazon-events-source\" : \"aws.managedblockchain\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/ManagedBlockchainInvitationStatusChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"ManagedBlockchainInvitationStatusChange\" : { \"type\" : \"object\", \"required\" : [ \"networkId\", \"invitationId\", \"expiresAt\", \"status\" ], \"properties\" : { \"createdAt\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"networkId\" : { \"type\" : \"string\" }, \"invitationId\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" }, \"expiresAt\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"acceptedAt\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"rejectedAt\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"status\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type ManagedBlockchainInvitationStatusChange, published by AWS service aws.managedblockchain",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.managedblockchain@ManagedBlockchainInvitationStatusChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

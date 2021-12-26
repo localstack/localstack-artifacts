@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"EC2SpotFleetStateChange\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"EC2 Spot Fleet State Change\", \"x-amazon-events-source\": \"aws.ec2spotfleet\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/EC2SpotFleetStateChange\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"EC2SpotFleetStateChange\": { \"type\": \"object\", \"required\": [\"sub-type\"], \"properties\": { \"sub-type\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type EC2SpotFleetStateChange, published by AWS service aws.ec2spotfleet",
+    "LastModified": "2021-02-11T18:39:37Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.ec2spotfleet@EC2SpotFleetStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-02-11T18:39:37Z"
+}

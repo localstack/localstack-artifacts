@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"MediaLiveChannelAlert\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"MediaLive Channel Alert\", \"x-amazon-events-source\" : \"aws.medialive\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/MediaLiveChannelAlert\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"MediaLiveChannelAlert\" : { \"type\" : \"object\", \"properties\" : { \"alarm_id\" : { \"type\" : \"string\" }, \"alarm_state\" : { \"type\" : \"string\" }, \"alert_type\" : { \"type\" : \"string\" }, \"channel_arn\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" }, \"pipeline\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type MediaLiveChannelAlert, published by AWS service aws.medialive",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.medialive@MediaLiveChannelAlert",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"EMRAutoScalingPolicyStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"EMR Auto Scaling Policy State Change\", \"x-amazon-events-source\" : \"aws.emr\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/EMRAutoScalingPolicyStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"EMRAutoScalingPolicyStateChange\" : { \"type\" : \"object\", \"properties\" : { \"resourceId\" : { \"type\" : \"string\" }, \"clusterId\" : { \"type\" : \"string\" }, \"state\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" }, \"scalingResourceType\" : { \"type\" : \"string\" }, \"severity\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type EMRAutoScalingPolicyStateChange, published by AWS service aws.emr",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.emr@EMRAutoScalingPolicyStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

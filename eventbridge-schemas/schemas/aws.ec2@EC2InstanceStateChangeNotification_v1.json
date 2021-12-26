@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"EC2InstanceStateChangeNotification\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"EC2 Instance State-change Notification\", \"x-amazon-events-source\" : \"aws.ec2\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/EC2InstanceStateChangeNotification\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"EC2InstanceStateChangeNotification\" : { \"type\" : \"object\", \"required\" : [ \"instance-id\", \"state\" ], \"properties\" : { \"instance-id\" : { \"type\" : \"string\" }, \"state\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type EC2InstanceStateChangeNotification, published by AWS service aws.ec2",
+    "LastModified": "2020-03-27T04:35:20Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.ec2@EC2InstanceStateChangeNotification",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:20Z"
+}

@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"TagChangeOnResource\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Tag Change on Resource\", \"x-amazon-events-source\" : \"aws.tag\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/TagChangeOnResource\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"TagChangeOnResource\" : { \"type\" : \"object\", \"required\" : [ \"changed-tag-keys\", \"service\", \"resource-type\", \"version\", \"tags\" ], \"properties\" : { \"tags\" : { \"$ref\" : \"#/components/schemas/Tags\" }, \"changed-tag-keys\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\", \"nullable\" : true } }, \"service\" : { \"type\" : \"string\" }, \"resource-type\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"number\", \"format\" : \"double\" }, \"tag-policy-compliant\" : { \"type\" : \"string\" } } }, \"Tags\" : { \"type\" : \"object\", \"nullable\" : true, \"additionalProperties\" : { \"type\" : \"string\" } } } } } ",
+    "Description": "Schema for event type TagChangeOnResource, published by AWS service aws.tag",
+    "LastModified": "2021-06-09T18:06:15Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.tag@TagChangeOnResource",
+    "SchemaVersion": "2",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-06-09T18:06:15Z"
+}

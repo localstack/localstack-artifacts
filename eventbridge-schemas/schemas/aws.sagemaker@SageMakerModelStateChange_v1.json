@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"SageMakerModelStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"SageMaker Model State Change\", \"x-amazon-events-source\" : \"aws.sagemaker\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/SageMakerModelStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"SageMakerModelStateChange\" : { \"type\" : \"object\", \"required\" : [ \"ModelArn\", \"ExecutionRoleArn\", \"PrimaryContainer\", \"ModelName\", \"CreationTime\" ], \"properties\" : { \"PrimaryContainer\" : { \"$ref\" : \"#/components/schemas/PrimaryContainer\" }, \"Tags\" : { \"type\" : \"array\", \"items\" : { \"$ref\" : \"#/components/schemas/Tags\" } }, \"ModelArn\" : { \"type\" : \"string\" }, \"ExecutionRoleArn\" : { \"type\" : \"string\" }, \"ModelName\" : { \"type\" : \"string\" }, \"CreationTime\" : { \"type\" : \"number\", \"format\" : \"double\" } } }, \"PrimaryContainer\" : { \"type\" : \"object\", \"required\" : [ \"ContainerHostname\", \"ModelDataUrl\", \"Image\" ], \"properties\" : { \"ContainerHostname\" : { \"type\" : \"string\" }, \"ModelDataUrl\" : { \"type\" : \"string\" }, \"Image\" : { \"type\" : \"string\" } } }, \"Tags\" : { \"type\" : \"object\", \"required\" : [ \"Value\", \"Key\" ], \"properties\" : { \"Key\" : { \"type\" : \"string\" }, \"Value\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type SageMakerModelStateChange, published by AWS service aws.sagemaker",
+    "LastModified": "2020-03-27T04:35:20Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.sagemaker@SageMakerModelStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:20Z"
+}

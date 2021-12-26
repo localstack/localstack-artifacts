@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"EBSMultiVolumeSnapshotsCompletionStatus\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"EBS Multi-Volume Snapshots Completion Status\", \"x-amazon-events-source\" : \"aws.ec2\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/EBSMultiVolumeSnapshotsCompletionStatus\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"EBSMultiVolumeSnapshotsCompletionStatus\" : { \"type\" : \"object\", \"properties\" : { \"cause\" : { \"type\" : \"string\" }, \"endTime\" : { \"type\" : \"string\" }, \"event\" : { \"type\" : \"string\" }, \"request-id\" : { \"type\" : \"string\" }, \"result\" : { \"type\" : \"string\" }, \"snapshots\" : { \"type\" : \"array\", \"items\" : { \"$ref\" : \"#/components/schemas/Snapshot\" } }, \"startTime\" : { \"type\" : \"string\" } } }, \"Snapshot\" : { \"type\" : \"object\", \"properties\" : { \"snapshot_id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"status\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type EBSMultiVolumeSnapshotsCompletionStatus, published by AWS service aws.ec2",
+    "LastModified": "2020-03-27T04:35:20Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.ec2@EBSMultiVolumeSnapshotsCompletionStatus",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:20Z"
+}

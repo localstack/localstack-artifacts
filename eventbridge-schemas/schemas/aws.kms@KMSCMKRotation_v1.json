@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"KMSCMKRotation\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"KMS CMK Rotation\", \"x-amazon-events-source\" : \"aws.kms\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/KMSCMKRotation\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"KMSCMKRotation\" : { \"type\" : \"object\", \"required\" : [ \"key-id\" ], \"properties\" : { \"key-id\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type KMSCMKRotation, published by AWS service aws.kms",
+    "LastModified": "2020-03-27T04:35:20Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.kms@KMSCMKRotation",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:20Z"
+}

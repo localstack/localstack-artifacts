@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"CalendarStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Calendar State Change\", \"x-amazon-events-source\" : \"aws.ssm\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/CalendarStateChange\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"CalendarStateChange\" : { \"type\" : \"object\", \"required\" : [ \"atTime\", \"state\", \"nextTransitionTime\" ], \"properties\" : { \"atTime\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"nextTransitionTime\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"state\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type CalendarStateChange, published by AWS service aws.ssm",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.ssm@CalendarStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"WorkSpacesAccess\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"WorkSpaces Access\", \"x-amazon-events-source\" : \"aws.workspaces\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/WorkSpacesAccess\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"WorkSpacesAccess\" : { \"type\" : \"object\", \"required\" : [ \"clientIpAddress\", \"actionType\", \"workspacesClientProductName\", \"loginTime\", \"clientPlatform\", \"directoryId\", \"workspaceId\" ], \"properties\" : { \"clientIpAddress\" : { \"type\" : \"string\" }, \"actionType\" : { \"type\" : \"string\" }, \"workspacesClientProductName\" : { \"type\" : \"string\" }, \"loginTime\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"clientPlatform\" : { \"type\" : \"string\" }, \"directoryId\" : { \"type\" : \"string\" }, \"workspaceId\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type WorkSpacesAccess, published by AWS service aws.workspaces",
+    "LastModified": "2020-03-27T04:35:11Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.workspaces@WorkSpacesAccess",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:11Z"
+}

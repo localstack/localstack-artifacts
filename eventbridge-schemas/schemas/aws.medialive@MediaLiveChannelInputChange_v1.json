@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\":{ \"version\" : \"1.0.0\", \"title\" : \"MediaLiveChannelInputChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [\"detail-type\",\"resources\",\"detail\",\"id\",\"source\",\"time\",\"region\",\"version\",\"account\"], \"x-amazon-events-detail-type\" : \"MediaLive Channel Input Change\", \"x-amazon-events-source\" : \"aws.medialive\", \"properties\" : { \"detail\" : { \"$ref\":\"#/components/schemas/MediaLiveChannelInputChange\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"MediaLiveChannelInputChange\" : { \"type\" : \"object\", \"required\" : [\"pipeline\",\"active_input_attachment_name\",\"channel_arn\",\"active_input_switch_action_name\",\"message\"], \"properties\": { \"active_input_attachment_name\" : { \"type\" : \"string\" }, \"active_input_switch_action_name\" : { \"type\" : \"string\" }, \"channel_arn\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" }, \"pipeline\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type MediaLiveChannelInputChange, published by AWS service aws.medialive",
+    "LastModified": "2021-04-13T19:41:29Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.medialive@MediaLiveChannelInputChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-04-13T19:41:29Z"
+}

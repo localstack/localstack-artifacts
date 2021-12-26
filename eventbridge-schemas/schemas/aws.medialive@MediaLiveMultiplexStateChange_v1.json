@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"MediaLiveMultiplexStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"MediaLive Multiplex State Change\", \"x-amazon-events-source\" : \"aws.medialive\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/MediaLiveMultiplexStateChange\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"MediaLiveMultiplexStateChange\" : { \"type\" : \"object\", \"required\" : [ \"pipeline\", \"state\", \"message\" ], \"properties\" : { \"message\" : { \"type\" : \"string\" }, \"pipeline\" : { \"type\" : \"string\" }, \"state\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type MediaLiveMultiplexStateChange, published by AWS service aws.medialive",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.medialive@MediaLiveMultiplexStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

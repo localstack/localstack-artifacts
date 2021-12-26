@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"CodeCommitApprovalRuleTemplateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"CodeCommit Approval Rule Template Change\", \"x-amazon-events-source\" : \"aws.codecommit\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/CodeCommitApprovalRuleTemplateChange\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"CodeCommitApprovalRuleTemplateChange\" : { \"type\" : \"object\", \"required\" : [ \"approvalRuleTemplateContentSha256\", \"lastModifiedDate\", \"repositories\", \"approvalRuleTemplateId\", \"notificationBody\", \"approvalRuleTemplateName\", \"callerUserArn\", \"creationDate\", \"event\" ], \"properties\" : { \"repositories\" : { \"$ref\" : \"#/components/schemas/Repositories\" }, \"approvalRuleTemplateContentSha256\" : { \"type\" : \"string\" }, \"approvalRuleTemplateId\" : { \"type\" : \"string\" }, \"approvalRuleTemplateName\" : { \"type\" : \"string\" }, \"callerUserArn\" : { \"type\" : \"string\" }, \"creationDate\" : { \"type\" : \"string\" }, \"event\" : { \"type\" : \"string\" }, \"lastModifiedDate\" : { \"type\" : \"string\" }, \"notificationBody\" : { \"type\" : \"string\" } } }, \"Repositories\" : { \"type\" : \"object\", \"additionalProperties\" : { \"type\" : \"string\" } } } } } ",
+    "Description": "Schema for event type CodeCommitApprovalRuleTemplateChange, published by AWS service aws.codecommit",
+    "LastModified": "2020-03-27T04:35:20Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.codecommit@CodeCommitApprovalRuleTemplateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:20Z"
+}

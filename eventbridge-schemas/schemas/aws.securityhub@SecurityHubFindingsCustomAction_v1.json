@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"SecurityHubFindingsCustomAction\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Security Hub Findings - Custom Action\", \"x-amazon-events-source\" : \"aws.securityhub\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/SecurityHubFindingsCustomAction\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"SecurityHubFindingsCustomAction\" : { \"type\" : \"object\", \"required\" : [ \"findings\" ], \"properties\" : { \"findings\" : { \"type\" : \"object\" } } } } } } ",
+    "Description": "Schema for event type SecurityHubFindingsCustomAction, published by AWS service aws.securityhub",
+    "LastModified": "2020-03-27T04:35:18Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.securityhub@SecurityHubFindingsCustomAction",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:18Z"
+}

@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"IVSRecordingStateChange\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"IVS Recording State Change\", \"x-amazon-events-source\": \"aws.ivs\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/IVSRecordingStateChange\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"IVSRecordingStateChange\": { \"type\": \"object\", \"required\": [\"channel_name\", \"stream_id\", \"recording_status\", \"recording_status_reason\", \"recording_s3_bucket_name\", \"recording_s3_key_prefix\"], \"properties\": { \"channel_name\": { \"type\": \"string\" }, \"stream_id\": { \"type\": \"string\" }, \"recording_status\": { \"type\": \"string\" }, \"recording_status_reason\": { \"type\": \"string\" }, \"recording_s3_bucket_name\": { \"type\": \"string\" }, \"recording_s3_key_prefix\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type RecordingStateChange, published by AWS service aws.ivs",
+    "LastModified": "2021-06-09T18:06:11Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.ivs@RecordingStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-06-09T18:06:11Z"
+}

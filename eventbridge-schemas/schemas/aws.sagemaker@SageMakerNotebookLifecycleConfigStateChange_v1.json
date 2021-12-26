@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"SageMakerNotebookLifecycleConfigStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"SageMaker Notebook Lifecycle Config State Change\", \"x-amazon-events-source\" : \"aws.sagemaker\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/SageMakerNotebookLifecycleConfigStateChange\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"SageMakerNotebookLifecycleConfigStateChange\" : { \"type\" : \"object\", \"properties\" : { \"CreationTime\" : { \"type\" : \"number\", \"format\" : \"double\" }, \"LastModifiedTime\" : { \"type\" : \"number\", \"format\" : \"double\" }, \"NotebookInstanceLifecycleConfigArn\" : { \"type\" : \"string\" }, \"NotebookInstanceLifecycleConfigName\" : { \"type\" : \"string\" }, \"Tags\" : { \"type\" : \"array\", \"items\" : { \"$ref\" : \"#/components/schemas/Tags\" } } } }, \"Tags\" : { \"type\" : \"object\", \"required\" : [ \"Value\", \"Key\" ], \"properties\" : { \"Key\" : { \"type\" : \"string\" }, \"Value\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type SageMakerNotebookLifecycleConfigStateChange, published by AWS service aws.sagemaker",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.sagemaker@SageMakerNotebookLifecycleConfigStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

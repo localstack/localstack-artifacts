@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"RDSDBInstanceEvent\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"RDS DB Instance Event\", \"x-amazon-events-source\" : \"aws.rds\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/RDSDBInstanceEvent\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"RDSDBInstanceEvent\" : { \"type\" : \"object\", \"required\": [\"Message\", \"SourceArn\", \"SourceType\", \"SourceIdentifier\", \"EventCategories\", \"EventID\", \"Date\"], \"properties\" : { \"Date\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"EventCategories\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"EventID\" : { \"type\" : \"string\" }, \"Message\" : { \"type\" : \"string\" }, \"SourceArn\" : { \"type\" : \"string\" }, \"SourceIdentifier\" : { \"type\" : \"string\" }, \"SourceType\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type RDSDBInstanceEvent, published by AWS service aws.rds",
+    "LastModified": "2021-02-11T18:39:41Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.rds@RDSDBInstanceEvent",
+    "SchemaVersion": "2",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-02-11T18:39:41Z"
+}

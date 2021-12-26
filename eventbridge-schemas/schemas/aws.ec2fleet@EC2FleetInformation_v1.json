@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"EC2FleetInformation\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"EC2 Fleet Information\", \"x-amazon-events-source\": \"aws.ec2fleet\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/EC2FleetInformation\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"EC2FleetInformation\": { \"type\": \"object\", \"required\": [\"description\", \"sub-type\"], \"properties\": { \"description\": { \"type\": \"string\" }, \"sub-type\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type EC2FleetInformation, published by AWS service aws.ec2fleet",
+    "LastModified": "2021-02-11T18:39:38Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.ec2fleet@EC2FleetInformation",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-02-11T18:39:38Z"
+}

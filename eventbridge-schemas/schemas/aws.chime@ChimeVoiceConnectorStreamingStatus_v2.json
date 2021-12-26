@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"ChimeVoiceConnectorStreamingStatus\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Chime VoiceConnector Streaming Status\", \"x-amazon-events-source\" : \"aws.chime\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/ChimeVoiceConnectorStreamingStatus\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"object\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" } } }, \"ChimeVoiceConnectorStreamingStatus\" : { \"type\" : \"object\", \"required\" : [ \"callId\", \"startFragmentNumber\", \"streamArn\", \"voiceConnectorId\", \"streamingStatus\", \"mediaType\", \"startTime\", \"version\", \"transactionId\", \"direction\" ], \"properties\" : { \"callId\" : { \"type\" : \"string\" }, \"direction\" : { \"type\" : \"string\" }, \"mediaType\" : { \"type\" : \"string\" }, \"startFragmentNumber\" : { \"type\" : \"string\" }, \"startTime\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"streamArn\" : { \"type\" : \"string\" }, \"streamingStatus\" : { \"type\" : \"string\" }, \"transactionId\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"voiceConnectorId\" : { \"type\" : \"string\" }, \"inviteHeaders\" : { \"type\" : \"object\", \"nullable\" : true, \"additionalProperties\" : { \"type\" : \"string\" } }, \"siprecMetadata\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type ChimeVoiceConnectorStreamingStatus, published by AWS service aws.chime",
+    "LastModified": "2021-04-13T19:41:28Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.chime@ChimeVoiceConnectorStreamingStatus",
+    "SchemaVersion": "2",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-04-13T19:41:28Z"
+}

@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"AthenaQueryStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Athena Query State Change\", \"x-amazon-events-source\" : \"aws.athena\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/AthenaQueryStateChange\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"object\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"AthenaQueryStateChange\" : { \"type\" : \"object\", \"required\" : [ \"sequenceNumber\", \"versionId\", \"statementType\", \"workgroupName\", \"currentState\", \"queryExecutionId\", \"previousState\" ], \"properties\" : { \"currentState\" : { \"type\" : \"string\" }, \"previousState\" : { \"type\" : \"string\" }, \"queryExecutionId\" : { \"type\" : \"string\" }, \"sequenceNumber\" : { \"type\" : \"string\" }, \"statementType\" : { \"type\" : \"string\" }, \"versionId\" : { \"type\" : \"string\" }, \"workgroupName\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type AthenaQueryStateChange, published by AWS service aws.athena",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.athena@AthenaQueryStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

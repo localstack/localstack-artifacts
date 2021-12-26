@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"MediaPackageInputNotification\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"MediaPackage Input Notification\", \"x-amazon-events-source\" : \"aws.mediapackage\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/MediaPackageInputNotification\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"MediaPackageInputNotification\" : { \"type\" : \"object\", \"required\" : [ \"event\", \"message\" ], \"properties\" : { \"event\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" }, \"packaging_configuration_id\" : { \"type\" : \"string\" }, \"manifest_urls\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } } } } } } } ",
+    "Description": "Schema for event type MediaPackageInputNotification, published by AWS service aws.mediapackage",
+    "LastModified": "2020-03-27T04:35:17Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.mediapackage@MediaPackageInputNotification",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:17Z"
+}

@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"CodeCommitRepositoryStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"CodeCommit Repository State Change\", \"x-amazon-events-source\" : \"aws.codecommit\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/CodeCommitRepositoryStateChange\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"CodeCommitRepositoryStateChange\" : { \"type\" : \"object\", \"required\" : [ \"repositoryId\", \"callerUserArn\", \"event\", \"repositoryName\" ], \"properties\" : { \"baseCommitId\" : { \"type\" : \"string\" }, \"callerUserArn\" : { \"type\" : \"string\" }, \"commitId\" : { \"type\" : \"string\" }, \"conflictDetailLevel\" : { \"type\" : \"string\" }, \"conflictResolutionStrategy\" : { \"type\" : \"string\" }, \"destinationCommitId\" : { \"type\" : \"string\" }, \"event\" : { \"type\" : \"string\" }, \"mergeOption\" : { \"type\" : \"string\" }, \"oldCommitId\" : { \"type\" : \"string\" }, \"referenceFullName\" : { \"type\" : \"string\" }, \"referenceName\" : { \"type\" : \"string\" }, \"referenceType\" : { \"type\" : \"string\" }, \"repositoryId\" : { \"type\" : \"string\" }, \"repositoryName\" : { \"type\" : \"string\" }, \"sourceCommitId\" : { \"type\" : \"string\" }, \"conflictDetailsLevel\": { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type CodeCommitRepositoryStateChange, published by AWS service aws.codecommit",
+    "LastModified": "2020-03-27T04:35:20Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.codecommit@CodeCommitRepositoryStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:20Z"
+}

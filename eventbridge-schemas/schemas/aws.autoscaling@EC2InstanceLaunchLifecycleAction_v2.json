@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"EC2InstanceLaunchLifecycleAction\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"EC2 Instance-launch Lifecycle Action\", \"x-amazon-events-source\" : \"aws.autoscaling\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/EC2InstanceLaunchLifecycleAction\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"EC2InstanceLaunchLifecycleAction\" : { \"type\" : \"object\", \"required\" : [ \"LifecycleHookName\", \"LifecycleTransition\", \"AutoScalingGroupName\", \"EC2InstanceId\", \"LifecycleActionToken\", \"NotificationMetadata\", \"Origin\", \"Destination\" ], \"properties\" : { \"LifecycleHookName\" : { \"type\" : \"string\" }, \"LifecycleTransition\" : { \"type\" : \"string\" }, \"AutoScalingGroupName\" : { \"type\" : \"string\" }, \"EC2InstanceId\" : { \"type\" : \"string\" }, \"LifecycleActionToken\" : { \"type\" : \"string\" }, \"NotificationMetadata\": { \"type\": \"string\" }, \"Origin\": { \"type\": \"string\" }, \"Destination\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type EC2InstanceLaunchLifecycleAction, published by AWS service aws.autoscaling",
+    "LastModified": "2021-04-13T19:41:29Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.autoscaling@EC2InstanceLaunchLifecycleAction",
+    "SchemaVersion": "2",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-04-13T19:41:29Z"
+}

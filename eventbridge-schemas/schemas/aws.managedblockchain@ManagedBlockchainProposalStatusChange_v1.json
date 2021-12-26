@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"ManagedBlockchainProposalStatusChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Managed Blockchain Proposal Status Change\", \"x-amazon-events-source\" : \"aws.managedblockchain\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/ManagedBlockchainProposalStatusChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"ManagedBlockchainProposalStatusChange\" : { \"type\" : \"object\", \"required\" : [ \"proposedByMemberName\", \"proposedByMemberId\", \"networkId\", \"message\", \"proposalId\", \"expirationDate\", \"status\" ], \"properties\" : { \"proposedByMemberName\" : { \"type\" : \"string\" }, \"proposedByMemberId\" : { \"type\" : \"string\" }, \"description\" : { \"type\" : \"string\" }, \"networkId\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" }, \"proposalId\" : { \"type\" : \"string\" }, \"expirationDate\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"status\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type ManagedBlockchainProposalStatusChange, published by AWS service aws.managedblockchain",
+    "LastModified": "2020-03-27T04:35:11Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.managedblockchain@ManagedBlockchainProposalStatusChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:11Z"
+}

@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"OpsWorksCommandStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"OpsWorks Command State Change\", \"x-amazon-events-source\" : \"aws.opsworks\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/OpsWorksCommandStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"OpsWorksCommandStateChange\" : { \"type\" : \"object\", \"required\" : [ \"command-id\", \"instance-id\", \"type\", \"status\" ], \"properties\" : { \"command-id\" : { \"type\" : \"string\" }, \"instance-id\" : { \"type\" : \"string\" }, \"type\" : { \"type\" : \"string\" }, \"status\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type OpsWorksCommandStateChange, published by AWS service aws.opsworks",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.opsworks@OpsWorksCommandStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

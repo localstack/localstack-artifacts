@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"EMRInstanceGroupStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"EMR Instance Group State Change\", \"x-amazon-events-source\" : \"aws.emr\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/EMRInstanceGroupStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"EMRInstanceGroupStateChange\" : { \"type\" : \"object\", \"properties\" : { \"market\" : { \"type\" : \"string\" }, \"severity\" : { \"type\" : \"string\" }, \"requestedInstanceCount\" : { \"type\" : \"integer\" }, \"instanceType\" : { \"type\" : \"string\" }, \"instanceGroupType\" : { \"type\" : \"string\" }, \"instanceGroupId\" : { \"type\" : \"string\" }, \"clusterId\" : { \"type\" : \"string\" }, \"runningInstanceCount\" : { \"type\" : \"integer\" }, \"state\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" }, \"bidPrice\" : { \"type\" : \"string\" }, \"bidPriceAsPercentageOfOnDemandPrice\" : { \"type\" : \"number\" } } } } } } ",
+    "Description": "Schema for event type EMRInstanceGroupStateChange, published by AWS service aws.emr",
+    "LastModified": "2020-03-27T04:35:11Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.emr@EMRInstanceGroupStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:11Z"
+}

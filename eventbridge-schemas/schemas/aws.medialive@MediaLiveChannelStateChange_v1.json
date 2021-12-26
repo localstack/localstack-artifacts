@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"MediaLiveChannelStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"MediaLive Channel State Change\", \"x-amazon-events-source\" : \"aws.medialive\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/MediaLiveChannelStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"MediaLiveChannelStateChange\" : { \"type\" : \"object\", \"properties\" : { \"pipeline\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" }, \"channel_arn\" : { \"type\" : \"string\" }, \"pipelines_running_count\" : { \"type\" : \"number\" }, \"state\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type MediaLiveChannelStateChange, published by AWS service aws.medialive",
+    "LastModified": "2020-03-27T04:35:18Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.medialive@MediaLiveChannelStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:18Z"
+}

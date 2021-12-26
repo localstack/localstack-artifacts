@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"TranscribeJobStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Transcribe Job State Change\", \"x-amazon-events-source\" : \"aws.transcribe\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/TranscribeJobStateChange\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"TranscribeJobStateChange\" : { \"type\" : \"object\", \"required\" : [ \"TranscriptionJobName\", \"TranscriptionJobStatus\" ], \"properties\" : { \"TranscriptionJobName\" : { \"type\" : \"string\" }, \"TranscriptionJobStatus\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type TranscribeJobStateChange, published by AWS service aws.transcribe",
+    "LastModified": "2020-03-27T04:35:10Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.transcribe@TranscribeJobStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:10Z"
+}

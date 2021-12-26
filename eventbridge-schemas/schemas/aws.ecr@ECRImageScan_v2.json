@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"ECRImageScan\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"ECR Image Scan\", \"x-amazon-events-source\" : \"aws.ecr\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/ECRImageScan\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"ECRImageScan\" : { \"type\" : \"object\", \"required\" : [ \"repository-name\", \"scan-status\" ], \"properties\" : { \"image-digest\" : { \"type\" : \"string\" }, \"image-tags\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"repository-name\" : { \"type\" : \"string\" }, \"scan-status\" : { \"type\" : \"string\" }, \"finding-severity-counts\" : { \"$ref\" : \"#/components/schemas/FindingSeverityCounts\" } } }, \"FindingSeverityCounts\" : { \"type\" : \"object\", \"properties\" : { \"CRITICAL\" : { \"type\":\"number\" }, \"HIGH\" : { \"type\" : \"number\" }, \"INFORMATIONAL\" : { \"type\" : \"number\" }, \"LOW\" : { \"type\" : \"number\" }, \"MEDIUM\" : { \"type\" : \"number\" }, \"UNDEFINED\" : { \"type\" : \"number\" } } } } } } ",
+    "Description": "Schema for event type ECRImageScan, published by AWS service aws.ecr",
+    "LastModified": "2020-09-30T16:34:10Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.ecr@ECRImageScan",
+    "SchemaVersion": "2",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-09-30T16:34:10Z"
+}

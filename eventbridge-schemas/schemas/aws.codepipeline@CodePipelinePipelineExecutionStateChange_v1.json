@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"CodePipelinePipelineExecutionStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"CodePipeline Pipeline Execution State Change\", \"x-amazon-events-source\" : \"aws.codepipeline\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/CodePipelinePipelineExecutionStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"CodePipelinePipelineExecutionStateChange\" : { \"type\" : \"object\", \"required\" : [ \"pipeline\", \"execution-id\", \"state\", \"version\" ], \"properties\" : { \"pipeline\" : { \"type\" : \"string\" }, \"execution-id\" : { \"type\" : \"string\" }, \"state\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"execution-trigger\": { \"type\" : \"object\", \"required\" : [\"trigger-type\", \"trigger-detail\"], \"properties\" : { \"trigger-type\" : { \"type\" : \"string\" }, \"trigger-detail\" : { \"type\" : \"string\" } } } } } } } } ",
+    "Description": "Schema for event type CodePipelinePipelineExecutionStateChange, published by AWS service aws.codepipeline",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.codepipeline@CodePipelinePipelineExecutionStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

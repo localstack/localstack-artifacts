@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"MGNSourceServerLaunchResult\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"MGN Source Server Launch Result\", \"x-amazon-events-source\": \"aws.mgn\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/MGNSourceServerLaunchResult\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"MGNSourceServerLaunchResult\": { \"type\": \"object\", \"required\": [\"job-id\", \"state\"], \"properties\": { \"job-id\": { \"type\": \"string\" }, \"state\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type MGNSourceServerLaunchResult, published by AWS service aws.mgn",
+    "LastModified": "2021-06-09T18:06:12Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.mgn@MGNSourceServerLaunchResult",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-06-09T18:06:12Z"
+}

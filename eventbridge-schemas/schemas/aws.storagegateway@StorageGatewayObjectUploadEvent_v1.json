@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"StorageGatewayObjectUploadEvent\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\": \"Storage Gateway Object Upload Event\", \"x-amazon-events-source\": \"aws.storagegateway\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/StorageGatewayObjectUploadEvent\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"StorageGatewayObjectUploadEvent\": { \"type\": \"object\", \"required\": [ \"object-size\", \"modification-time\", \"object-key\", \"event-type\", \"prefix\", \"bucket-name\" ], \"properties\": { \"bucket-name\": { \"type\": \"string\" }, \"event-type\": { \"type\": \"string\" }, \"modification-time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"object-key\": { \"type\": \"string\" }, \"object-size\": { \"type\": \"number\" }, \"prefix\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type StorageGatewayObjectUploadEvent, published by AWS service aws.storagegateway",
+    "LastModified": "2021-02-11T18:39:41Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.storagegateway@StorageGatewayObjectUploadEvent",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-02-11T18:39:41Z"
+}

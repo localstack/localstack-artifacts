@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"TrustedAdvisorCheckItemRefreshNotification\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Trusted Advisor Check Item Refresh Notification\", \"x-amazon-events-source\" : \"aws.trustedadvisor\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/TrustedAdvisorCheckItemRefreshNotification\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"TrustedAdvisorCheckItemRefreshNotification\" : { \"type\" : \"object\", \"required\" : [ \"check-name\", \"resource_id\", \"check-item-detail\", \"uuid\", \"status\" ], \"properties\" : { \"check-item-detail\" : { \"$ref\" : \"#/components/schemas/Check-item-detail\" }, \"check-name\" : { \"type\" : \"string\" }, \"resource_id\" : { \"type\" : \"string\" }, \"status\" : { \"type\" : \"string\" }, \"uuid\" : { \"type\" : \"string\" } } }, \"Check-item-detail\" : { \"type\" : \"object\", \"required\" : [ \"EC2Config Status\", \"Status\", \"Instance ID\", \"Region\", \"Timestamp\" ], \"properties\" : { \"EC2Config Status\" : { \"type\" : \"string\" }, \"Instance ID\" : { \"type\" : \"string\" }, \"Region\" : { \"type\" : \"string\" }, \"Status\" : { \"type\" : \"string\" }, \"Timestamp\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type TrustedAdvisorCheckItemRefreshNotification, published by AWS service aws.trustedadvisor",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.trustedadvisor@TrustedAdvisorCheckItemRefreshNotification",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

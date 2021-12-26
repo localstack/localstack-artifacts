@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"OpsWorksDeploymentStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"OpsWorks Deployment State Change\", \"x-amazon-events-source\" : \"aws.opsworks\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/OpsWorksDeploymentStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"OpsWorksDeploymentStateChange\" : { \"type\" : \"object\", \"required\" : [ \"duration\", \"stack-id\", \"instance-ids\", \"deployment-id\", \"command\", \"status\" ], \"properties\" : { \"duration\" : { \"type\" : \"number\" }, \"stack-id\" : { \"type\" : \"string\" }, \"instance-ids\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"deployment-id\" : { \"type\" : \"string\" }, \"command\" : { \"type\" : \"string\" }, \"status\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type OpsWorksDeploymentStateChange, published by AWS service aws.opsworks",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.opsworks@OpsWorksDeploymentStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

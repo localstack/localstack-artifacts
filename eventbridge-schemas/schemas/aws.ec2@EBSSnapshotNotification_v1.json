@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"EBSSnapshotNotification\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"EBS Snapshot Notification\", \"x-amazon-events-source\" : \"aws.ec2\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/EBSSnapshotNotification\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"EBSSnapshotNotification\" : { \"type\" : \"object\", \"required\" : [ \"result\", \"EndTime\", \"snapshot_id\", \"StartTime\", \"cause\", \"source\", \"event\", \"request-id\" ], \"properties\" : { \"result\" : { \"type\" : \"string\" }, \"EndTime\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"snapshot_id\" : { \"type\" : \"string\" }, \"StartTime\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"cause\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"event\" : { \"type\" : \"string\" }, \"request-id\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type EBSSnapshotNotification, published by AWS service aws.ec2",
+    "LastModified": "2020-03-27T04:35:20Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.ec2@EBSSnapshotNotification",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:20Z"
+}

@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"GlueJobRunStatus\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Glue Job Run Status\", \"x-amazon-events-source\" : \"aws.glue\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/GlueJobRunStatus\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"GlueJobRunStatus\" : { \"type\" : \"object\", \"required\" : [ \"jobName\", \"severity\", \"notificationCondition\", \"state\", \"jobRunId\", \"message\", \"startedOn\" ], \"properties\" : { \"notificationCondition\" : { \"$ref\" : \"#/components/schemas/NotificationCondition\" }, \"jobName\" : { \"type\" : \"string\" }, \"severity\" : { \"type\" : \"string\" }, \"state\" : { \"type\" : \"string\" }, \"jobRunId\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" }, \"startedOn\" : { \"type\" : \"string\", \"format\" : \"date-time\" } } }, \"NotificationCondition\" : { \"type\" : \"object\", \"required\" : [ \"NotifyDelayAfter\" ], \"properties\" : { \"NotifyDelayAfter\" : { \"type\" : \"number\", \"format\" : \"double\" } } } } } } ",
+    "Description": "Schema for event type GlueJobRunStatus, published by AWS service aws.glue",
+    "LastModified": "2020-03-27T04:35:17Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.glue@GlueJobRunStatus",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:17Z"
+}

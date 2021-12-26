@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"ObjectAccessTierChanged\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [ \"account\", \"detail\", \"detail-type\", \"id\", \"region\", \"resources\", \"source\", \"time\", \"version\" ], \"x-amazon-events-detail-type\": \"Object Access Tier Changed\", \"x-amazon-events-source\": \"aws.s3\", \"properties\": { \"account\": { \"type\": \"string\" }, \"detail\": { \"$ref\": \"#/components/schemas/ObjectAccessTierChanged\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"ObjectAccessTierChanged\": { \"type\": \"object\", \"required\": [ \"bucket\", \"destination-access-tier\", \"object\", \"requester\", \"request-id\", \"version\" ], \"properties\": { \"bucket\": { \"$ref\": \"#/components/schemas/Bucket\" }, \"object\": { \"$ref\": \"#/components/schemas/Object\" }, \"destination-access-tier\": { \"type\": \"string\" }, \"request-id\": { \"type\": \"string\" }, \"requester\": { \"type\": \"string\" }, \"version\": { \"type\": \"string\" } } }, \"Bucket\": { \"type\": \"object\", \"required\": [ \"name\" ], \"properties\": { \"name\": { \"type\": \"string\" } } }, \"Object\": { \"type\": \"object\", \"required\": [ \"etag\", \"key\", \"size\" ], \"properties\": { \"etag\": { \"type\": \"string\" }, \"key\": { \"type\": \"string\" }, \"size\": { \"type\": \"number\" }, \"version-id\": { \"type\": \"string\" } } } } } } ",
+    "Description": "Schema for event type ObjectAccessTierChanged, published by AWS service aws.s3",
+    "LastModified": "2021-11-29T21:54:22Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.s3@ObjectAccessTierChanged",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-11-29T21:54:22Z"
+}

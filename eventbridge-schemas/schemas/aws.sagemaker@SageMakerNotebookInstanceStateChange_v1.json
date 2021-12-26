@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"SageMakerNotebookInstanceStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"SageMaker Notebook Instance State Change\", \"x-amazon-events-source\" : \"aws.sagemaker\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/SageMakerNotebookInstanceStateChange\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"SageMakerNotebookInstanceStateChange\" : { \"type\" : \"object\", \"properties\" : { \"Tags\" : { \"type\" : \"array\", \"items\" : { \"$ref\" : \"#/components/schemas/Tags\" } }, \"CreationTime\" : { \"type\" : \"number\", \"format\" : \"double\" }, \"InstanceType\" : { \"type\" : \"string\" }, \"LastModifiedTime\" : { \"type\" : \"number\", \"format\" : \"double\" }, \"NotebookInstanceArn\" : { \"type\" : \"string\" }, \"NotebookInstanceLifecycleConfigName\" : { \"type\" : \"string\" }, \"NotebookInstanceName\" : { \"type\" : \"string\" }, \"NotebookInstanceStatus\" : { \"type\" : \"string\" }, \"RoleArn\" : { \"type\" : \"string\" } } }, \"Tags\" : { \"type\" : \"object\", \"required\" : [ \"Value\", \"Key\" ], \"properties\" : { \"Key\" : { \"type\" : \"string\" }, \"Value\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type SageMakerNotebookInstanceStateChange, published by AWS service aws.sagemaker",
+    "LastModified": "2020-03-27T04:35:20Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.sagemaker@SageMakerNotebookInstanceStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:20Z"
+}

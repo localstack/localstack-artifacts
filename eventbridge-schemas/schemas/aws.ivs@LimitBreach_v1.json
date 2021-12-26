@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"IVSLimitBreach\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"IVS Limit Breach\", \"x-amazon-events-source\": \"aws.ivs\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/IVSLimitBreach\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"IVSLimitBreach\": { \"type\": \"object\", \"required\": [\"limit_unit\", \"limit\", \"limit_value\", \"exceeded_by\"], \"properties\": { \"exceeded_by\": { \"type\": \"number\" }, \"limit\": { \"type\": \"string\" }, \"limit_unit\": { \"type\": \"string\" }, \"limit_value\": { \"type\": \"number\" } } } } } }",
+    "Description": "Schema for event type LimitBreach, published by AWS service aws.ivs",
+    "LastModified": "2020-09-30T16:34:12Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.ivs@LimitBreach",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-09-30T16:34:12Z"
+}

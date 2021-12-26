@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"DataSyncLocationStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"DataSync Location State Change\", \"x-amazon-events-source\" : \"aws.datasync\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/DataSyncLocationStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"DataSyncLocationStateChange\" : { \"type\" : \"object\", \"required\" : [ \"State\" ], \"properties\" : { \"State\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } } } } } } }",
+    "Description": "Schema for event type DataSyncLocationStateChange, published by AWS service aws.datasync",
+    "LastModified": "2020-03-27T04:35:18Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.datasync@DataSyncLocationStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:18Z"
+}

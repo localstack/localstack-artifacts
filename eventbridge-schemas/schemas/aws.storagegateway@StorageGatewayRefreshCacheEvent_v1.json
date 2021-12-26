@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"StorageGatewayRefreshCacheEvent\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"Storage Gateway Refresh Cache Event\", \"x-amazon-events-source\": \"aws.storagegateway\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/StorageGatewayRefreshCacheEvent\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\", \"format\": \"date\" } } }, \"StorageGatewayRefreshCacheEvent\": { \"type\": \"object\", \"required\": [\"event-type\", \"notification-id\", \"started\", \"completed\", \"folderList\"], \"properties\": { \"completed\": { \"type\": \"string\", \"format\": \"date-time\" }, \"event-type\": { \"type\": \"string\" }, \"folderList\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"notification-id\": { \"type\": \"string\" }, \"started\": { \"type\": \"string\", \"format\": \"date-time\" } } } } } }",
+    "Description": "Schema for event type StorageGatewayRefreshCacheEvent, published by AWS service aws.storagegateway",
+    "LastModified": "2021-06-09T18:06:24Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.storagegateway@StorageGatewayRefreshCacheEvent",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-06-09T18:06:24Z"
+}

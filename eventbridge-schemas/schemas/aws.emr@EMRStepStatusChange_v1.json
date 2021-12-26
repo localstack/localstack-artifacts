@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"EMRStepStatusChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"EMR Step Status Change\", \"x-amazon-events-source\" : \"aws.emr\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/EMRStepStatusChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"EMRStepStatusChange\" : { \"type\" : \"object\", \"properties\" : { \"severity\" : { \"type\" : \"string\" }, \"actionOnFailure\" : { \"type\" : \"string\" }, \"stepId\" : { \"type\" : \"string\" }, \"name\" : { \"type\" : \"string\" }, \"clusterId\" : { \"type\" : \"string\" }, \"state\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type EMRStepStatusChange, published by AWS service aws.emr",
+    "LastModified": "2020-03-27T04:35:20Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.emr@EMRStepStatusChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:20Z"
+}

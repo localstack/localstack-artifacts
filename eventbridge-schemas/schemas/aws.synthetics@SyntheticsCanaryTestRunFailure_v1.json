@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"SyntheticsCanaryTestRunFailure\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"Synthetics Canary TestRun Failure\", \"x-amazon-events-source\": \"aws.synthetics\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/SyntheticsCanaryTestRunFailure\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"object\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"SyntheticsCanaryTestRunFailure\": { \"type\": \"object\", \"required\": [\"test-run-status\", \"account-id\", \"canary-run-timeline\", \"artifact-location\", \"state-reason\", \"canary-id\", \"message\", \"canary-name\", \"canary-run-id\"], \"properties\": { \"canary-run-timeline\": { \"$ref\": \"#/components/schemas/Canary-run-timeline\" }, \"account-id\": { \"type\": \"string\" }, \"artifact-location\": { \"type\": \"string\" }, \"canary-id\": { \"type\": \"string\" }, \"canary-name\": { \"type\": \"string\" }, \"canary-run-id\": { \"type\": \"string\" }, \"message\": { \"type\": \"string\" }, \"state-reason\": { \"type\": \"string\" }, \"test-run-status\": { \"type\": \"string\" } } }, \"Canary-run-timeline\": { \"type\": \"object\", \"required\": [\"started\", \"completed\"], \"properties\": { \"completed\": { \"type\": \"number\" }, \"started\": { \"type\": \"number\" } } } } } }",
+    "Description": "Schema for event type SyntheticsCanaryTestRunFailure, published by AWS service aws.synthetics",
+    "LastModified": "2021-04-13T19:41:31Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.synthetics@SyntheticsCanaryTestRunFailure",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-04-13T19:41:31Z"
+}

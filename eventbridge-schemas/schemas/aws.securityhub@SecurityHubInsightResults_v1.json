@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"SecurityHubInsightResults\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Security Hub Insight Results\", \"x-amazon-events-source\" : \"aws.securityhub\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/SecurityHubInsightResults\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"SecurityHubInsightResults\" : { \"type\" : \"object\", \"required\" : [ \"insightName\", \"insightResults\", \"actionDescription\", \"insightArn\", \"resultType\", \"actionName\" ], \"properties\" : { \"insightName\" : { \"type\" : \"string\" }, \"insightResults\" : { \"type\" : \"array\", \"items\" : { \"$ref\" : \"#/components/schemas/SecurityHubInsightResult\" } }, \"actionDescription\" : { \"type\" : \"string\" }, \"insightArn\" : { \"type\" : \"string\" }, \"resultType\" : { \"type\" : \"string\" }, \"actionName\" : { \"type\" : \"string\" } } }, \"SecurityHubInsightResult\" : { \"type\" : \"object\", \"nullable\" : true, \"additionalProperties\" : { \"type\" : \"string\" } } } } } ",
+    "Description": "Schema for event type SecurityHubInsightResults, published by AWS service aws.securityhub",
+    "LastModified": "2020-03-27T04:35:10Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.securityhub@SecurityHubInsightResults",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:10Z"
+}

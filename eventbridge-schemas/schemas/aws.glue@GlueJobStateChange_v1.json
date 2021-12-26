@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"GlueJobStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Glue Job State Change\", \"x-amazon-events-source\" : \"aws.glue\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/GlueJobStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"GlueJobStateChange\" : { \"type\" : \"object\", \"required\" : [ \"jobName\", \"severity\", \"state\", \"jobRunId\", \"message\" ], \"properties\" : { \"jobName\" : { \"type\" : \"string\" }, \"severity\" : { \"type\" : \"string\" }, \"state\" : { \"type\" : \"string\" }, \"jobRunId\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type GlueJobStateChange, published by AWS service aws.glue",
+    "LastModified": "2020-03-27T04:35:10Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.glue@GlueJobStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:10Z"
+}

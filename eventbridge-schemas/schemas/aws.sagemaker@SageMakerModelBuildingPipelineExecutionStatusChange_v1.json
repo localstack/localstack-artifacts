@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"SageMakerModelBuildingPipelineExecutionStatusChange\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"SageMaker Model Building Pipeline Execution Status Change\", \"x-amazon-events-source\": \"aws.sagemaker\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/SageMakerModelBuildingPipelineExecutionStatusChange\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"SageMakerModelBuildingPipelineExecutionStatusChange\": { \"type\": \"object\", \"required\": [\"currentPipelineExecutionStatus\", \"pipelineArn\", \"pipelineExecutionDescription\", \"executionStartTime\", \"previousPipelineExecutionStatus\", \"pipelineExecutionArn\", \"executionEndTime\", \"pipelineExecutionDisplayName\"], \"properties\": { \"currentPipelineExecutionStatus\": { \"type\": \"string\" }, \"executionEndTime\": { \"type\": \"string\", \"format\": \"date-time\" }, \"executionStartTime\": { \"type\": \"string\", \"format\": \"date-time\" }, \"pipelineArn\": { \"type\": \"string\" }, \"pipelineExecutionArn\": { \"type\": \"string\" }, \"pipelineExecutionDescription\": { \"type\": \"string\" }, \"pipelineExecutionDisplayName\": { \"type\": \"string\" }, \"previousPipelineExecutionStatus\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type SageMakerModelBuildingPipelineExecutionStatusChange, published by AWS service aws.sagemaker",
+    "LastModified": "2021-06-09T18:06:17Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.sagemaker@SageMakerModelBuildingPipelineExecutionStatusChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-06-09T18:06:17Z"
+}

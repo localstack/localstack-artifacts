@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"SageMakerEndpointStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"SageMaker Endpoint State Change\", \"x-amazon-events-source\" : \"aws.sagemaker\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/SageMakerEndpointStateChange\" }, \"account\" : { \"type\" : \"string\" }, \"detail-type\" : { \"type\" : \"string\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"SageMakerEndpointStateChange\" : { \"type\" : \"object\", \"properties\" : { \"Tags\" : { \"type\" : \"array\", \"items\" : { \"$ref\" : \"#/components/schemas/Tags\" } }, \"CreationTime\" : { \"type\" : \"number\", \"format\" : \"double\" }, \"EndpointArn\" : { \"type\" : \"string\" }, \"EndpointConfigName\" : { \"type\" : \"string\" }, \"EndpointName\" : { \"type\" : \"string\" }, \"EndpointStatus\" : { \"type\" : \"string\" }, \"LastModifiedTime\" : { \"type\" : \"number\", \"format\" : \"double\" } } }, \"Tags\" : { \"type\" : \"object\", \"required\" : [ \"Value\", \"Key\" ], \"properties\" : { \"Key\" : { \"type\" : \"string\" }, \"Value\" : { \"type\" : \"string\" } } } } } } ",
+    "Description": "Schema for event type SageMakerEndpointStateChange, published by AWS service aws.sagemaker",
+    "LastModified": "2020-03-27T04:35:20Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.sagemaker@SageMakerEndpointStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:20Z"
+}

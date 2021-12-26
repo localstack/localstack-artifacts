@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"GlueDataCatalogTableStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"Glue Data Catalog Table State Change\", \"x-amazon-events-source\" : \"aws.glue\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/GlueDataCatalogTableStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"GlueDataCatalogTableStateChange\" : { \"type\" : \"object\", \"required\" : [ \"databaseName\", \"changedPartitions\", \"typeOfChange\", \"tableName\" ], \"properties\" : { \"databaseName\" : { \"type\" : \"string\" }, \"changedPartitions\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"typeOfChange\" : { \"type\" : \"string\" }, \"tableName\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type GlueDataCatalogTableStateChange, published by AWS service aws.glue",
+    "LastModified": "2020-03-27T04:35:10Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.glue@GlueDataCatalogTableStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:10Z"
+}

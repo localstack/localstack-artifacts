@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"RoomStateChange\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"account\" ], \"x-amazon-events-detail-type\": \"Room State Change\", \"x-amazon-events-source\": \"aws.a4b\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/RoomStateChange\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" } } }, \"RoomStateChange\": { \"type\": \"object\", \"required\": [ \"mode\", \"calendar-event\", \"event-type\", \"version\" ], \"properties\": { \"calendar-event\": { \"$ref\": \"#/components/schemas/Calendar-event\" }, \"event-type\": { \"type\": \"string\" }, \"mode\": { \"type\": \"string\" }, \"version\": { \"type\": \"string\" } } }, \"Calendar-event\": { \"type\": \"object\", \"required\": [ \"profileArn\", \"calendarId\", \"provider\", \"startTime\", \"endTime\", \"id\", \"roomArn\" ], \"properties\": { \"calendarId\": { \"type\": \"string\" }, \"checkInTime\": { \"type\": \"string\", \"format\": \"date-time\" }, \"endTime\": { \"type\": \"string\", \"format\": \"date-time\" }, \"id\": { \"type\": \"string\" }, \"profileArn\": { \"type\": \"string\" }, \"provider\": { \"type\": \"string\" }, \"releaseTime\": { \"type\": \"string\", \"format\": \"date-time\" }, \"roomArn\": { \"type\": \"string\" }, \"startTime\": { \"type\": \"string\", \"format\": \"date-time\" } } } } } }",
+    "Description": "Schema for event type RoomStateChange, published by AWS service aws.a4b",
+    "LastModified": "2020-10-27T16:04:47Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.a4b@RoomStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-10-27T16:04:47Z"
+}

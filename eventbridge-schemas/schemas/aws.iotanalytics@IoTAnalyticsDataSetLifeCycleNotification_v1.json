@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"IoTAnalyticsDataSetLifeCycleNotification\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"IoT Analytics DataSet Lifecycle Notification\", \"x-amazon-events-source\" : \"aws.iotanalytics\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/IoTAnalyticsDataSetLifeCycleNotification\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"IoTAnalyticsDataSetLifeCycleNotification\" : { \"type\" : \"object\", \"required\" : [ \"event-detail-version\", \"version-id\", \"state\", \"message\", \"dataset-name\", \"content-delivery-rule-index\" ], \"properties\" : { \"event-detail-version\" : { \"type\" : \"string\" }, \"version-id\" : { \"type\" : \"string\" }, \"state\" : { \"type\" : \"string\" }, \"message\" : { \"type\" : \"string\", \"nullable\" : true }, \"dataset-name\" : { \"type\" : \"string\" }, \"content-delivery-rule-index\" : { \"type\" : \"number\" } } } } } } ",
+    "Description": "Schema for event type IoTAnalyticsDataSetLifeCycleNotification, published by AWS service aws.iotanalytics",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.iotanalytics@IoTAnalyticsDataSetLifeCycleNotification",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

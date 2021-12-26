@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"IVSStreamHealthChange\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"IVS Stream Health Change\", \"x-amazon-events-source\": \"aws.ivs\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/IVSStreamHealthChange\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"IVSStreamHealthChange\": { \"type\": \"object\", \"required\": [\"channel_name\", \"event_name\"], \"properties\": { \"channel_name\": { \"type\": \"string\" }, \"event_name\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type StreamHealthChange, published by AWS service aws.ivs",
+    "LastModified": "2020-09-30T16:34:12Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.ivs@StreamHealthChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-09-30T16:34:12Z"
+}

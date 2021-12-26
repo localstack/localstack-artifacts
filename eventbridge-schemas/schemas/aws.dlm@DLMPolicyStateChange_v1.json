@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"DLMPolicyStateChange\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"DLM Policy State Change\", \"x-amazon-events-source\" : \"aws.dlm\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/DLMPolicyStateChange\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"DLMPolicyStateChange\" : { \"type\" : \"object\", \"required\" : [ \"policy_id\", \"cause\", \"state\" ], \"properties\" : { \"policy_id\" : { \"type\" : \"string\" }, \"cause\" : { \"type\" : \"string\" }, \"state\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type DLMPolicyStateChange, published by AWS service aws.dlm",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.dlm@DLMPolicyStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

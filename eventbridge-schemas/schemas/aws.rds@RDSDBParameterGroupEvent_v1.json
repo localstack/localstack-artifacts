@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"RDSDBParameterGroupEvent\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"id\", \"source\", \"time\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"RDS DB Parameter Group Event\", \"x-amazon-events-source\" : \"aws.rds\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/RDSDBParameterGroupEvent\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"id\" : { \"type\" : \"string\" }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"RDSDBParameterGroupEvent\" : { \"type\" : \"object\", \"required\" : [ \"SourceArn\", \"Message\", \"SourceType\", \"SourceIdentifier\", \"EventCategories\", \"Date\" ], \"properties\" : { \"SourceArn\" : { \"type\" : \"string\" }, \"Message\" : { \"type\" : \"string\" }, \"SourceType\" : { \"type\" : \"string\" }, \"SourceIdentifier\" : { \"type\" : \"string\" }, \"EventCategories\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"Date\" : { \"type\" : \"string\", \"format\" : \"date-time\" } } } } } }",
+    "Description": "Schema for event type RDSDBParameterGroupEvent, published by AWS service aws.rds",
+    "LastModified": "2020-03-27T04:35:11Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.rds@RDSDBParameterGroupEvent",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:11Z"
+}

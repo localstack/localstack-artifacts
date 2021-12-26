@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"TranslateParallelDataStateChange\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"Translate Parallel Data State Change\", \"x-amazon-events-source\": \"aws.translate\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/TranslateParallelDataStateChange\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"TranslateParallelDataStateChange\": { \"type\": \"object\", \"required\": [\"latestUpdateAttemptStatus\", \"latestUpdateAttemptAt\", \"name\", \"operation\", \"status\"], \"properties\": { \"latestUpdateAttemptAt\": { \"type\": \"string\", \"format\": \"date-time\" }, \"latestUpdateAttemptStatus\": { \"type\": \"string\" }, \"name\": { \"type\": \"string\" }, \"operation\": { \"type\": \"string\" }, \"status\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type TranslateTextTranslationJobStateChange, published by AWS service aws.translate",
+    "LastModified": "2021-11-24T20:21:26Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.translate@TranslateTextTranslationJobStateChange",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-11-24T20:21:26Z"
+}

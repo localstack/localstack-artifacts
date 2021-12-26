@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"AmazonConnectContactEvent\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"Amazon Connect Contact Event\", \"x-amazon-events-source\": \"aws.connect\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/AmazonConnectContactEvent\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"AmazonConnectContactEvent\": { \"type\": \"object\", \"required\": [\"queueInfo\", \"agentInfo\", \"initialContactId\", \"contactId\", \"initiationMethod\", \"channel\", \"eventType\", \"instanceArn\", \"previousContactId\"], \"properties\": { \"agentInfo\": { \"$ref\": \"#/components/schemas/AgentInfo\" }, \"queueInfo\": { \"$ref\": \"#/components/schemas/QueueInfo\" }, \"channel\": { \"type\": \"string\" }, \"contactId\": { \"type\": \"string\" }, \"eventType\": { \"type\": \"string\" }, \"initialContactId\": { \"type\": \"string\" }, \"initiationMethod\": { \"type\": \"string\" }, \"instanceArn\": { \"type\": \"string\" }, \"previousContactId\": { \"type\": \"string\" } } }, \"AgentInfo\": { \"type\": \"object\", \"required\": [\"agentArn\"], \"properties\": { \"agentArn\": { \"type\": \"string\" } } }, \"QueueInfo\": { \"type\": \"object\", \"required\": [\"queueType\", \"queueArn\"], \"properties\": { \"queueArn\": { \"type\": \"string\" }, \"queueType\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type CodeConnectContact, published by AWS service aws.connect",
+    "LastModified": "2021-06-09T18:06:14Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.connect@CodeConnectContact",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-06-09T18:06:14Z"
+}

@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\": \"3.0.0\", \"info\": { \"version\": \"1.0.0\", \"title\": \"RedshiftDataStatementStatusChange\" }, \"paths\": {}, \"components\": { \"schemas\": { \"AWSEvent\": { \"type\": \"object\", \"required\": [\"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\": \"Redshift Data Statement Status Change\", \"x-amazon-events-source\": \"aws.redshift-data\", \"properties\": { \"detail\": { \"$ref\": \"#/components/schemas/RedshiftDataStatementStatusChange\" }, \"account\": { \"type\": \"string\" }, \"detail-type\": { \"type\": \"string\" }, \"id\": { \"type\": \"string\" }, \"region\": { \"type\": \"string\" }, \"resources\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }, \"source\": { \"type\": \"string\" }, \"time\": { \"type\": \"string\", \"format\": \"date-time\" }, \"version\": { \"type\": \"string\" } } }, \"RedshiftDataStatementStatusChange\": { \"type\": \"object\", \"required\": [\"principal\", \"statementName\", \"redshiftQueryId\", \"statementId\", \"state\", \"expireAt\", \"rows\"], \"properties\": { \"expireAt\": { \"type\": \"string\", \"format\": \"date-time\" }, \"principal\": { \"type\": \"string\" }, \"redshiftQueryId\": { \"type\": \"number\" }, \"rows\": { \"type\": \"number\" }, \"state\": { \"type\": \"string\" }, \"statementId\": { \"type\": \"string\" }, \"statementName\": { \"type\": \"string\" } } } } } }",
+    "Description": "Schema for event type RedshiftDataStatementStatusChangeEvent, published by AWS service aws.redshiftdata",
+    "LastModified": "2021-06-09T18:06:15Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.redshiftdata@RedshiftDataStatementStatusChangeEvent",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-06-09T18:06:15Z"
+}

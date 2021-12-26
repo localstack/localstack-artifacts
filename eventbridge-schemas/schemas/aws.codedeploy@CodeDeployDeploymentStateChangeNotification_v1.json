@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"CodeDeployDeploymentStateChangeNotification\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"source\", \"time\", \"id\", \"detail\", \"region\", \"version\", \"account\" ], \"x-amazon-events-detail-type\" : \"CodeDeploy Deployment State-change Notification\", \"x-amazon-events-source\" : \"aws.codedeploy\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/CodeDeployDeploymentStateChangeNotification\" }, \"detail-type\" : { \"type\" : \"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"id\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" }, \"version\" : { \"type\" : \"string\" }, \"account\" : { \"type\" : \"string\" } } }, \"CodeDeployDeploymentStateChangeNotification\" : { \"type\" : \"object\", \"required\" : [ \"application\", \"deploymentId\", \"deploymentGroup\", \"instanceGroupId\", \"state\", \"region\" ], \"properties\" : { \"application\" : { \"type\" : \"string\" }, \"deploymentId\" : { \"type\" : \"string\" }, \"deploymentGroup\" : { \"type\" : \"string\" }, \"instanceGroupId\" : { \"type\" : \"string\" }, \"state\" : { \"type\" : \"string\" }, \"region\" : { \"type\" : \"string\" } } } } } }",
+    "Description": "Schema for event type CodeDeployDeploymentStateChangeNotification, published by AWS service aws.codedeploy",
+    "LastModified": "2020-03-27T04:35:19Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.codedeploy@CodeDeployDeploymentStateChangeNotification",
+    "SchemaVersion": "1",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2020-03-27T04:35:19Z"
+}

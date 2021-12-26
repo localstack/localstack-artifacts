@@ -1,0 +1,11 @@
+{
+    "Content": "{ \"openapi\" : \"3.0.0\", \"info\" : { \"version\" : \"1.0.0\", \"title\" : \"LocationGeofenceEvent\" }, \"paths\" : { }, \"components\" : { \"schemas\" : { \"AWSEvent\" : { \"type\" : \"object\", \"required\" : [ \"detail-type\", \"resources\", \"detail\", \"id\", \"source\", \"time\", \"region\", \"version\", \"account\"], \"x-amazon-events-detail-type\" : \"Location Geofence Event\", \"x-amazon-events-source\" : \"aws.geo\", \"properties\" : { \"detail\" : { \"$ref\" : \"#/components/schemas/LocationGeofenceEvent\" }, \"account\" : { \"type\":\"string\" }, \"detail-type\" : { \"type\":\"string\" }, \"id\" : { \"type\":\"string\" }, \"region\" : { \"type\":\"string\" }, \"resources\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"string\" } }, \"source\" : { \"type\" : \"string\" }, \"time\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"version\" : { \"type\" : \"string\" } } }, \"LocationGeofenceEvent\":{ \"type\" : \"object\", \"required\" : [\"EventType\",\"Position\",\"DeviceId\",\"GeofenceId\",\"SampleTime\"], \"properties\" : { \"DeviceId\" : { \"type\":\"string\" }, \"EventType\" : { \"type\":\"string\" }, \"GeofenceId\" : { \"type\":\"string\" }, \"Position\" : { \"type\" : \"array\", \"items\" : { \"type\" : \"number\", \"format\" : \"double\" } }, \"SampleTime\" : { \"type\" : \"string\", \"format\" : \"date-time\" }, \"Accuracy\": { \"type\": \"object\", \"properties\": { \"Horizontal\": { \"type\": \"number\", \"format\": \"double\" } } }, \"PositionProperties\": { \"type\": \"object\", \"additionalProperties\": {\"type\": \"string\"} } } } } } } ",
+    "Description": "Schema for event type LocationGeofenceEvent, published by AWS service aws.geo",
+    "LastModified": "2021-12-15T19:09:02Z",
+    "SchemaArn": "",
+    "SchemaName": "aws.geo@LocationGeofenceEvent",
+    "SchemaVersion": "2",
+    "Tags": {},
+    "Type": "OpenApi3",
+    "VersionCreatedDate": "2021-12-15T19:09:02Z"
+}
