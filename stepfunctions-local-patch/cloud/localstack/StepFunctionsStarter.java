@@ -30,10 +30,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.After;
-import org.aspectj.lang.annotation.Around;
-import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.*;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import javax.servlet.http.HttpServletRequest;
@@ -42,10 +39,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class StepFunctionsStarter {
@@ -85,7 +79,7 @@ public class StepFunctionsStarter {
                 kryo.register(ExecutionModel.class);
                 kryo.register(ExecutionStatus.class);
 
-                // using obnesis StdInstantiatorStrategy to allow creating objects
+                // using objenesis StdInstantiatorStrategy to allow creating objects
                 // from classes without default constructors
                 kryo.setInstantiatorStrategy(new DefaultInstantiatorStrategy(new StdInstantiatorStrategy()));
             }
@@ -244,6 +238,11 @@ public class StepFunctionsStarter {
             PersistenceContext.INSTANCE.writeState();
         }
 
+    }
+
+    @Aspect
+    public static class RegionAspect {
+
         @Around("execution(* com.amazonaws..HttpRequestHandlers.handle(..))")
         public void aroundHttpHandle(ProceedingJoinPoint joinPoint) throws Throwable {
             HttpRequestHandlers httpHandlers = (HttpRequestHandlers)joinPoint.getTarget();
@@ -278,13 +277,17 @@ public class StepFunctionsStarter {
     public static void main(String[] args) {
         INSTANCE = new StepFunctionsLocal();
         ARGS = args;
-
         // load state from persistence files
-        try {
-            PersistenceContext.INSTANCE.getKryo();
-            PersistenceContext.INSTANCE.loadState();
-        } catch (Exception e) {
-            System.out.println("Unable to initialize persistence context: " + e);
+        if (System.getProperty("org.aspectj.weaver.loadtime.configuration").contains("pro")) {
+            try {
+                Log.info("Starting StepFunctionsLocal with Multi-Region & Persistence Support");
+                PersistenceContext.INSTANCE.getKryo();
+                PersistenceContext.INSTANCE.loadState();
+            } catch (Exception e) {
+                Log.error("Unable to initialize persistence context", e);
+            }
+        } else {
+            Log.info("Starting StepFunctionsLocal with Multi-Region support.");
         }
 
         try {
