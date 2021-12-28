@@ -1,11 +1,8 @@
 package cloud.localstack;
 
-import com.amazonaws.services.stepfunctions.AWSStepFunctions;
-import com.amazonaws.services.stepfunctions.AWSStepFunctionsClient;
 import com.amazonaws.services.stepfunctions.model.ExecutionStatus;
 import com.amazonaws.services.stepfunctions.model.StateMachineStatus;
 import com.amazonaws.stepfunctions.local.StepFunctionsLocal;
-import com.amazonaws.stepfunctions.local.dagger.ClientModule;
 import com.amazonaws.stepfunctions.local.dagger.DaggerSfnLocalComponent;
 import com.amazonaws.stepfunctions.local.dagger.SfnLocalComponent;
 import com.amazonaws.stepfunctions.local.http.HttpRequestHandlers;
