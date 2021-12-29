@@ -25,5 +25,5 @@ patch-jar:	## Create the patched JAR with updated classes
 	jar ufm StepFunctionsLocal.jar META-INF/MANIFEST.MF cloud/ com/ META-INF/aop.xml
 
 compile-docker:	## Compile patch class(es) in Docker with JDK Version 8
-	docker run --rm -it -v $$(pwd):/app openjdk:8 /bin/bash -c "javac -cp \"/app/lib/*\" \`find /app -name '*.java'\`"
+	docker run --rm -it -v $$(pwd):/app openjdk:8 /bin/bash -c "javac -g -cp \"/app/lib/*\" \`find /app -name '*.java'\`"
 
