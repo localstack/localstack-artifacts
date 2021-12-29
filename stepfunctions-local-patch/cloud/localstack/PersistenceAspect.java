@@ -19,7 +19,7 @@ public class PersistenceAspect {
     }
 
     @After("execution(* com.amazonaws..StepFunctionsLocal.start(..))")
-    public void afterStartup(JoinPoint joinPoint) throws InterruptedException {
+    public void afterStartup(JoinPoint joinPoint) {
         // StepFunctionsLocal.start is overloaded (once with String[] argument and once without arguments)
         if(joinPoint.getArgs().length == 0) {
             return;
