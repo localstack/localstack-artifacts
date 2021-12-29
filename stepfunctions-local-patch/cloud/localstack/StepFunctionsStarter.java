@@ -1,13 +1,9 @@
 package cloud.localstack;
 
 import com.amazonaws.stepfunctions.local.StepFunctionsLocal;
-import com.amazonaws.stepfunctions.local.model.ActivityModel;
-import com.amazonaws.stepfunctions.local.model.ExecutionModel;
-import com.amazonaws.stepfunctions.local.model.StateMachineModel;
 import com.amazonaws.stepfunctions.local.runtime.Log;
 import com.amazonaws.stepfunctions.local.runtime.exceptions.InterruptiveArgsException;
 import com.amazonaws.stepfunctions.local.runtime.exceptions.InvalidArgsException;
-import java.util.*;
 
 public class StepFunctionsStarter {
     static StepFunctionsLocal INSTANCE;

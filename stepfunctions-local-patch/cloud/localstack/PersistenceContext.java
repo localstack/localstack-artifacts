@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
 // TODO: update storing/loading of persistence state to loop over all entries in REQUEST_HANDLERS (for each region)
-class PersistenceContext {
+public class PersistenceContext {
     static final PersistenceContext INSTANCE = new PersistenceContext();
     Kryo kryo;
     RequestHandlers handlers;
