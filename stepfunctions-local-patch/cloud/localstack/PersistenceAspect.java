@@ -1,3 +1,4 @@
+
 package cloud.localstack;
 
 import com.amazonaws.stepfunctions.local.runtime.Log;
@@ -12,11 +13,6 @@ import java.util.concurrent.locks.ReentrantLock;
 public class PersistenceAspect {
 
     static Lock lock = new ReentrantLock();
-
-    @After("execution(* com.amazonaws..StateMachineRepo.createStateMachine(..))")
-    public void afterCreateStateMachine(JoinPoint joinPoint) {
-        PersistenceContext.INSTANCE.writeState();
-    }
 
     @After("execution(* com.amazonaws..StepFunctionsLocal.start(..))")
     public void afterStartup(JoinPoint joinPoint) {
@@ -35,6 +31,11 @@ public class PersistenceAspect {
         } finally {
             lock.unlock();
         }
+    }
+
+    @After("execution(* com.amazonaws..StateMachineRepo.createStateMachine(..))")
+    public void afterCreateStateMachine(JoinPoint joinPoint) {
+        PersistenceContext.INSTANCE.writeState();
     }
 
     @After("execution(* com.amazonaws..StateMachineRepo.updateStateMachine(..))")
