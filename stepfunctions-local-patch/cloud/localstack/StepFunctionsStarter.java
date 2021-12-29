@@ -15,12 +15,6 @@ public class StepFunctionsStarter {
     // original command line arguments
     static String[] ARGS;
 
-    static class PersistenceState {
-        Map<String, StateMachineModel> stateMachines;
-        Map<String, ExecutionModel> executions;
-        Map<String, ActivityModel> activities;
-    }
-
     public static void main(String[] args) {
         INSTANCE = new StepFunctionsLocal();
         ARGS = args;

@@ -39,7 +39,7 @@ class PersistenceContext {
             kryo = new Kryo();
             kryo.register(java.util.HashMap.class);
             kryo.register(java.util.Date.class);
-            kryo.register(StepFunctionsStarter.PersistenceState.class);
+            kryo.register(PersistenceState.class);
             // register state machine classes
             kryo.register(StateMachineModel.class);
             kryo.register(StateMachineStatus.class);
@@ -57,8 +57,8 @@ class PersistenceContext {
         return kryo;
     }
 
-    StepFunctionsStarter.PersistenceState getState() throws Exception {
-        StepFunctionsStarter.PersistenceState state = new StepFunctionsStarter.PersistenceState();
+    PersistenceState getState() throws Exception {
+        PersistenceState state = new PersistenceState();
 
         // get state machines
         Pair<Field, StateMachineRepo> smField = getStateMachinesField();
@@ -124,7 +124,7 @@ class PersistenceContext {
 
             Kryo kryo = PersistenceContext.INSTANCE.getKryo();
             Input input = new Input(new FileInputStream(stateFile));
-            StepFunctionsStarter.PersistenceState state = kryo.readObject(input, StepFunctionsStarter.PersistenceState.class);
+            PersistenceState state = kryo.readObject(input, PersistenceState.class);
             input.close();
 
             // set state machines
@@ -153,7 +153,7 @@ class PersistenceContext {
             }
 
             Kryo kryo = context.getKryo();
-            StepFunctionsStarter.PersistenceState state = context.getState();
+            PersistenceState state = context.getState();
             Output output = new Output(new FileOutputStream(stateFile));
             kryo.writeObject(output, state);
             output.close();
