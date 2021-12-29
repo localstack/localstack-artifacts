@@ -1,0 +1,8 @@
+<aspectj>
+    <aspects>
+        <aspect name="cloud.localstack.RegionAspect"/>
+        <aspect name="cloud.localstack.PersistenceAspect"/>
+        <weaver options="-verbose -showWeaveInfo">
+        </weaver>
+    </aspects>
+</aspectj>
