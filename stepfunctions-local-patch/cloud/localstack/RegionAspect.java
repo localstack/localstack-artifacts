@@ -10,6 +10,9 @@ import com.amazonaws.stepfunctions.local.repo.ExecutionRepo;
 import com.amazonaws.stepfunctions.local.runtime.executors.task.external.*;
 import com.amazonaws.stepfunctions.local.runtime.executors.task.external.states.DescribeExecution;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.amazonaws.stepfunctions.local.runtime.executors.StateExecutor;
+import com.amazonaws.stepfunctions.local.runtime.executors.task.TaskStateExecutor;
+import com.amazonaws.swf.auth.arn.ARN;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -18,6 +21,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 // TODO: might make sense to rename the aspect at some point since it doesn't only handle region customizations now
 @Aspect
@@ -77,5 +81,20 @@ public class RegionAspect {
         DescribeExecutionParsed de2 = new DescribeExecutionParsed(sfn, mapper, executionRepo);
         service.register(new Async2ServiceApi(asyncServiceAPI.getCaller(), de2));
         return service;
+    }
+
+    @Around("execution(* com.amazonaws..TaskStateExecutor.createExecutor(..))")
+    public StateExecutor aroundCreateExecutor(ProceedingJoinPoint joinPoint) throws Throwable {
+        TaskStateExecutor taskStateExecutor = (TaskStateExecutor) joinPoint.getTarget();
+        Field f = taskStateExecutor.getClass().getDeclaredField("localComponent");
+        f.setAccessible(true);
+        ARN resourceArn = (ARN) joinPoint.getArgs()[0];
+        SfnLocalComponent component = COMPONENT_PER_REGION.get(resourceArn.getRegion());
+
+        if (Objects.equals(resourceArn.getResourceType(), "aws-sdk")) {
+            return component.lambdaTaskStateExecutor();
+        } else {
+            return (StateExecutor) joinPoint.proceed(joinPoint.getArgs());
+        }
     }
 }

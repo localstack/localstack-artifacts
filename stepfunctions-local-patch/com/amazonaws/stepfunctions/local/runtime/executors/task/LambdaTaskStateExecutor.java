@@ -3,8 +3,6 @@ package com.amazonaws.stepfunctions.local.runtime.executors.task;
 import com.amazonaws.ClientConfiguration;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.regions.Region;
-import com.amazonaws.regions.Regions;
 import com.amazonaws.services.lambda.AWSLambda;
 import com.amazonaws.services.lambda.AWSLambdaClient;
 import com.amazonaws.services.lambda.AWSLambdaClientBuilder;
@@ -34,8 +32,13 @@ import com.amazonaws.stepfunctions.local.runtime.executors.StateMachineExecutor.
 import com.amazonaws.stepfunctions.local.runtime.executors.StateMachineExecutor.StateResult;
 import com.amazonaws.stepfunctions.local.util.ResponseUtils;
 import com.amazonaws.stepfunctions.local.util.Arn.ArnUtils;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -88,9 +91,32 @@ public class LambdaTaskStateExecutor extends StateExecutor {
     }
 
     public StateResult execute() {
-        this.validateLambdaARN();
         String filteredInput = this.getFilteredInput();
         String effectiveInput = this.getEffectiveInput(this.taskState.getParameters());
+
+        // map aws-sdk tasks to lambda tasks
+        if (this.lambdaArn.contains("aws-sdk")) {
+            String[] parts = this.lambdaArn.split(":");
+            // we're using the full ARN here for the resource instead of an invoke integration which means the output will only contain the payload from the invocation
+            this.lambdaArn = String.join(":", Arrays.asList(parts[0], parts[1], "lambda", config.getRegion(), config.getAccount(), "function", "localstack-internal-awssdk"));
+            Map<String, Object> map = new HashMap<>();
+            String service = parts[6];
+            String operation = parts[7];
+            try {
+                map.put("params", mapper.readValue(effectiveInput, HashMap.class));
+                map.put("region", this.config.getRegion());
+                map.put("service", service);
+                map.put("operation", operation);
+                effectiveInput = mapper.writeValueAsString(map);
+
+                // TODO: return proper exceptions when executing lambda
+//                 this.exitOnFailure(service.substring(0,1).toUpperCase(Locale.ROOT) + service.substring(1).toLowerCase(Locale.ROOT) + "." + operation, "cause");
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+        }
+
+        this.validateLambdaARN();
 
         // whummer: Small patch to enable invocation of Lambdas across different regions
         String region = this.lambdaArn.split(":")[3];
