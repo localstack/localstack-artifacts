@@ -4,21 +4,28 @@ import com.amazonaws.services.stepfunctions.AWSStepFunctions;
 import com.amazonaws.stepfunctions.local.dagger.DaggerSfnLocalComponent;
 import com.amazonaws.stepfunctions.local.dagger.SfnLocalComponent;
 import com.amazonaws.stepfunctions.local.http.HttpRequestHandlers;
+import com.amazonaws.stepfunctions.local.runtime.Config;
 import com.amazonaws.stepfunctions.local.runtime.exceptions.InterruptiveArgsException;
 import com.amazonaws.stepfunctions.local.runtime.exceptions.InvalidArgsException;
 import com.amazonaws.stepfunctions.local.repo.ExecutionRepo;
 import com.amazonaws.stepfunctions.local.runtime.executors.task.external.*;
+import com.amazonaws.stepfunctions.local.runtime.executors.task.external.apigateway.ApiGatewayInvokeCaller;
+import com.amazonaws.stepfunctions.local.runtime.executors.task.external.apigateway.ApiGatewayInvokeRequest;
 import com.amazonaws.stepfunctions.local.runtime.executors.task.external.states.DescribeExecution;
+import com.amazonaws.stepfunctions.local.util.ApiEndpointParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.amazonaws.stepfunctions.local.runtime.executors.StateExecutor;
 import com.amazonaws.stepfunctions.local.runtime.executors.task.TaskStateExecutor;
 import com.amazonaws.swf.auth.arn.ARN;
+import org.apache.commons.lang3.StringUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import software.amazon.awssdk.utils.http.SdkHttpUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -97,4 +104,90 @@ public class RegionAspect {
             return (StateExecutor) joinPoint.proceed(joinPoint.getArgs());
         }
     }
+
+    /* ============================================ */
+    /* ============ APIGATEWAY PATCHES ============ */
+    /* ============================================ */
+
+    @Around("execution(static * com.amazonaws..ApiEndpointParser.isApiValid(..))")
+    public boolean aroundIsApiValid(ProceedingJoinPoint joinPoint) throws Throwable {
+        String[] parts = (String[]) joinPoint.getArgs()[0];
+
+        if (parts.length == 1) {
+            // http://localhost:4566/....
+            return parts[0].startsWith("localhost");
+        } else if (parts.length == 6 && Objects.equals(parts[4], "localstack")) {
+            // http(s)://<restapi-id>.execute-api.us-east-1.localhost.localstack.cloud/...
+            return true;
+        } else if (parts.length == 5 && Objects.equals(parts[3], "localstack")) {
+            // http(s)://<restapi-id>.execute-api.localhost.localstack.cloud/...
+            return true;
+        }
+
+        return (boolean) joinPoint.proceed(joinPoint.getArgs());
+    }
+
+    /**
+     * This just needs to return *some* string for now (won't be used later on)
+     */
+    @Around("execution(* com.amazonaws..ApiGatewayInvokeCaller.parseRegionFromEndpoint(..))")
+    public String aroundParseRegionFromEndpoint(ProceedingJoinPoint joinPoint) throws Throwable {
+        return "replaceme";
+    }
+
+    /**
+     *  We're using the config in the arguments to set the region argument
+     *  This would otherwise be the "replaceme" string from above
+     */
+    @Around("execution(* com.amazonaws..ApiGatewayInvokeCaller.signRequestWithSigV4IfNecessary(..))")
+    public String aroundSignRequestWithSigV4IfNecessary(ProceedingJoinPoint joinPoint) throws Throwable {
+        Object[] args = joinPoint.getArgs();
+        Config config = (Config) joinPoint.getArgs()[3];
+        args[2] = config.getRegion();
+        return (String) joinPoint.proceed(args);
+    }
+
+    /**
+     * Patches the generated URLs for the localstack specific URLS (localhost  or ... localhost.localstack.cloud)
+     */
+    @Around("execution(* com.amazonaws..ApiGatewayInvokeCaller.createUrl(..))")
+    public URI aroundCreateUrl(ProceedingJoinPoint joinPoint) throws Throwable {
+        ApiGatewayInvokeRequest invokeRequest = (ApiGatewayInvokeRequest) joinPoint.getArgs()[0];
+        String endpoint = invokeRequest.getApiEndpoint();
+
+        if (endpoint.contains("localhost:4566")) {
+            // remove region for localstack
+            StringBuilder urlBuilder = (new StringBuilder("http://")).append(endpoint);
+            if (invokeRequest.getStage() != null) {
+                urlBuilder.append("/").append(SdkHttpUtils.urlEncodeIgnoreSlashes(invokeRequest.getStage()));
+            }
+
+            if (invokeRequest.getPath() != null) {
+                String path = StringUtils.removeStart(invokeRequest.getPath(), "/");
+                path = StringUtils.removeEnd(path, "/");
+                urlBuilder.append("/").append(SdkHttpUtils.urlEncodeIgnoreSlashes(path));
+            }
+
+            return URI.create(urlBuilder.toString());
+        } else {
+            // remove region for localstack
+            int start = endpoint.indexOf(".", endpoint.indexOf(".") + 1);
+            int end = endpoint.indexOf(".", start + 1);
+            String endpointWithoutRegion = endpoint.substring(0, start) + endpoint.substring(end);
+
+            StringBuilder urlBuilder = (new StringBuilder("https://")).append(endpointWithoutRegion).append(":4566");
+            if (invokeRequest.getStage() != null) {
+                urlBuilder.append("/").append(SdkHttpUtils.urlEncodeIgnoreSlashes(invokeRequest.getStage()));
+            }
+
+            if (invokeRequest.getPath() != null) {
+                String path = StringUtils.removeStart(invokeRequest.getPath(), "/");
+                path = StringUtils.removeEnd(path, "/");
+                urlBuilder.append("/").append(SdkHttpUtils.urlEncodeIgnoreSlashes(path));
+            }
+
+            return URI.create(urlBuilder.toString());
+        }
+    }
+
 }
