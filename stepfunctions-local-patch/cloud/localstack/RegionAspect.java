@@ -5,6 +5,7 @@ import com.amazonaws.stepfunctions.local.dagger.DaggerSfnLocalComponent;
 import com.amazonaws.stepfunctions.local.dagger.SfnLocalComponent;
 import com.amazonaws.stepfunctions.local.http.HttpRequestHandlers;
 import com.amazonaws.stepfunctions.local.runtime.Config;
+import com.amazonaws.stepfunctions.local.runtime.Log;
 import com.amazonaws.stepfunctions.local.runtime.exceptions.InterruptiveArgsException;
 import com.amazonaws.stepfunctions.local.runtime.exceptions.InvalidArgsException;
 import com.amazonaws.stepfunctions.local.repo.ExecutionRepo;
@@ -29,6 +30,9 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+
+import static java.lang.Integer.parseInt;
 
 // TODO: might make sense to rename the aspect at some point since it doesn't only handle region customizations now
 @Aspect
@@ -155,7 +159,9 @@ public class RegionAspect {
         ApiGatewayInvokeRequest invokeRequest = (ApiGatewayInvokeRequest) joinPoint.getArgs()[0];
         String endpoint = invokeRequest.getApiEndpoint();
 
-        if (endpoint.contains("localhost:4566")) {
+        String edgePort = Optional.ofNullable(System.getenv("EDGE_PORT")).orElse("4566");
+
+        if (endpoint.contains("localhost:" + edgePort)) {
             // remove region for localstack
             StringBuilder urlBuilder = (new StringBuilder("http://")).append(endpoint);
             if (invokeRequest.getStage() != null) {
@@ -170,12 +176,17 @@ public class RegionAspect {
 
             return URI.create(urlBuilder.toString());
         } else {
-            // remove region for localstack
+            // remove region part (pattern: <api_id>.execute-api.<region>.<rest>)
+            // because localstack uses the api_id directly to look up the API across regions
             int start = endpoint.indexOf(".", endpoint.indexOf(".") + 1);
             int end = endpoint.indexOf(".", start + 1);
             String endpointWithoutRegion = endpoint.substring(0, start) + endpoint.substring(end);
 
-            StringBuilder urlBuilder = (new StringBuilder("https://")).append(endpointWithoutRegion).append(":4566");
+            StringBuilder urlBuilder = new StringBuilder("https://")
+                    .append(endpointWithoutRegion)
+                    .append(":")
+                    .append(edgePort);
+
             if (invokeRequest.getStage() != null) {
                 urlBuilder.append("/").append(SdkHttpUtils.urlEncodeIgnoreSlashes(invokeRequest.getStage()));
             }
