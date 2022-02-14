@@ -14,7 +14,6 @@ public class StepFunctionsStarter {
     public static void main(String[] args) {
         INSTANCE = new StepFunctionsLocal();
         ARGS = args;
-
         try {
             INSTANCE.config().printVersion();
             INSTANCE.config().readEnv();
