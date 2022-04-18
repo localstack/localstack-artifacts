@@ -24,3 +24,6 @@ cp etc/libsqlite4java-linux-amd64.so build/DynamoDBLocal_lib/
 # create zip file
 (cd build; zip -r DynamoDBLocal.zip *)
 cp build/DynamoDBLocal.zip etc/
+
+# compile patched Java class
+javac -cp build/DynamoDBLocal.jar `find com/ -name '*.java'`
