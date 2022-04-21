@@ -1,2 +1,4 @@
 build/
+target/
 dynamodb_local_latest.zip
+*.iml
