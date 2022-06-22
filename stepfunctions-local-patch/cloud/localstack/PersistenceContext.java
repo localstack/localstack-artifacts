@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.lang.reflect.Field;
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -173,9 +174,8 @@ public class PersistenceContext {
     String getStateFile() {
         String dataDir = System.getenv("DATA_DIR");
         if (dataDir == null || dataDir.trim().isEmpty()) return null;
-        // Note: simply using "/" as separator, assuming that we're on Unix
-        String baseDir = dataDir + "/api_states/stepfunctions/_";
+        String baseDir = Paths.get(dataDir, "stepfunctions").toString();
         new File(baseDir).mkdirs();
-        return baseDir + "/backend_state";
+        return Paths.get(baseDir, "backend_state").toString();
     }
 }
