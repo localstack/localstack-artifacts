@@ -4,7 +4,7 @@ usage:		## Show this help
 
 extract:	## Extract stepfunctions libs from docker image
 	rm -rf ./lib ; \
-	docker_id=$$(docker run -d --entrypoint="" amazon/aws-stepfunctions-local:latest /bin/sleep infinity) ; \
+	docker_id=$$(docker run -d --entrypoint="" amazon/aws-stepfunctions-local:1.7.9 /bin/sleep infinity) ; \
 	docker cp $$docker_id:/home/stepfunctionslocal/ ./lib ; \
 	docker kill $$docker_id ; \
 	wget -O lib/aspectjrt-1.9.7.jar https://repo1.maven.org/maven2/org/aspectj/aspectjrt/1.9.7/aspectjrt-1.9.7.jar; \
