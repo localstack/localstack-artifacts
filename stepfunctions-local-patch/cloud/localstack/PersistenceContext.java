@@ -1,6 +1,7 @@
 package cloud.localstack;
 
 import com.amazonaws.services.stepfunctions.model.ExecutionStatus;
+import com.amazonaws.services.stepfunctions.model.LoggingConfiguration;
 import com.amazonaws.services.stepfunctions.model.StateMachineStatus;
 import com.amazonaws.stepfunctions.local.http.RequestHandlers;
 import com.amazonaws.stepfunctions.local.model.ActivityModel;
@@ -49,6 +50,8 @@ public class PersistenceContext {
             // register execution classes
             kryo.register(ExecutionModel.class);
             kryo.register(ExecutionStatus.class);
+            // register LoggingConfiguration class
+            kryo.register(LoggingConfiguration.class);
 
             // using objenesis StdInstantiatorStrategy to allow creating objects
             // from classes without default constructors
