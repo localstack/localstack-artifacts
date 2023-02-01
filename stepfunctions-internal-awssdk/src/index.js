@@ -35,14 +35,18 @@ var handler = async ({ service, operation, params, region }) => {
   if (serviceKey) {
     try {
       const service2 = Reflect.get(AWS, serviceKey);
-      const client = new service2({
+      const config = {
         endpoint,
         region,
         credentials: {
           accessKeyId: "test",
           secretAccessKey: "test"
         }
-      });
+      }
+      if (serviceKey.toLowerCase() === "s3") {
+        config.s3ForcePathStyle = true;
+      }
+      const client = new service2(config);
       const fn = Reflect.get(client, operation);
       const response = Reflect.apply(fn, client, [params]);
       const result = await response.promise();
