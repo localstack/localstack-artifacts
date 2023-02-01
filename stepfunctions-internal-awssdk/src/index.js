@@ -41,7 +41,8 @@ var handler = async ({ service, operation, params, region }) => {
         credentials: {
           accessKeyId: "test",
           secretAccessKey: "test"
-        }
+        },
+        s3ForcePathStyle: true
       });
       const fn = Reflect.get(client, operation);
       const response = Reflect.apply(fn, client, [params]);
