@@ -1,7 +1,7 @@
 IMAGE_NAME := mosquitto_builder
 CONTAINER_NAME := mosquitto_runner
 VERSION := v2.0.12
-DEB_RELEASE := buster
+DEB_RELEASE := bullseye
 
 .PHONY: all
 all: amd64 arm64
