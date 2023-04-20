@@ -1,4 +1,6 @@
-FROM debian:buster-slim
+ARG DEB_RELEASE
+
+FROM debian:${DEB_RELEASE}-slim
 
 ARG VERSION
 
