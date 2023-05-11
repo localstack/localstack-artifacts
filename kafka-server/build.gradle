@@ -1,8 +1,8 @@
 plugins {
   id 'java'
   id 'application'
-  id 'org.jetbrains.kotlin.jvm' version '1.5.10'
-  id 'com.github.johnrengelman.shadow' version '6.1.0'
+  id 'org.jetbrains.kotlin.jvm' version '1.8.21'
+  id 'com.github.johnrengelman.shadow' version '8.1.0'
 }
 
 repositories {
@@ -16,7 +16,15 @@ repositories {
 }
 
 dependencies {
-    implementation "no.nav:kafka-embedded-env:2.8.0"
+    // note: later versions of kafka-embedded-env require Java 17+, whereas we only have JRE 11 installed in the LS container
+    implementation("no.nav:kafka-embedded-env:3.1.0") {
+        exclude group: 'log4j', module: 'log4j'
+        // exclude libs to prevent CVEs with certain versions
+        exclude group: 'io.confluent', module: 'confluent-log4j'
+        exclude group: 'org.yaml', module: 'snakeyaml'
+    }
+    implementation "org.apache.logging.log4j:log4j-core:2.20.0"
+    implementation "org.yaml:snakeyaml:2.0"
 }
 
 shadowJar {
