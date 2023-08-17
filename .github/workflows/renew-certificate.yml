@@ -49,7 +49,7 @@ jobs:
       - name: Generate certificate
         working-directory: "local-certs"
         env:
-          CERTBOT_ARGS: "${{ github.ref == 'refs/heads/master' && '' || '--staging' }}"
+          CERTBOT_ARGS: "${{ github.ref != 'refs/heads/master' && '--staging' || '' }}"
           DNS_API_KEY: "${{ secrets.DNS_API_KEY }}"
           CERTBOT_EMAIL: ${{ env.git_user_email }}
         run: |
