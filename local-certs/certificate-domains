@@ -9,3 +9,4 @@ localhost.localstack.cloud
 *.s3.localhost.localstack.cloud
 *.scm.localhost.localstack.cloud
 *.dkr.ecr.{region}.localhost.localstack.cloud
+*.lambda-url.{region}.localhost.localstack.cloud
