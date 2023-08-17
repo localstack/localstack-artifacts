@@ -19,6 +19,9 @@ on:
       - "local-certs/generate-certificate.sh"
     branches:
       - master
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 6 1 * *'
 
 env:
   git_user_name: localstack[bot]
