@@ -11,7 +11,6 @@ chmod 600 gandi.ini
 
 # request certificate
 set -x
-# TODO replace with `certbot` after trial run
 certbot -n --agree-tos --email ${CERTBOT_EMAIL} ${CERTBOT_ARGS} --authenticator dns-gandi --dns-gandi-credentials gandi.ini --work-dir=$PWD/work --config-dir=$PWD/config --logs-dir=$PWD/logs -d $certificate_domains certonly
 set +x
 
