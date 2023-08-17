@@ -37,8 +37,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          ref: ${{ github.head_ref }}
       - name: Set up Python
         id: setup-python
         uses: actions/setup-python@v4
@@ -58,7 +56,7 @@ jobs:
           ./generate-certificate.sh
       - name: Commit certificate
         working-directory: "local-certs"
-        # if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/master'
         run: |
           git config user.name ${{ env.git_user_name }}
           git config user.email ${{ env.git_user_email }}
