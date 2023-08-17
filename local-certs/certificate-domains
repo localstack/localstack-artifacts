@@ -1,0 +1,11 @@
+localhost.localstack.cloud
+*.localhost.localstack.cloud
+*.amplifyapp.localhost.localstack.cloud
+*.cloudfront.localhost.localstack.cloud
+*.elb.localhost.localstack.cloud
+*.execute-api.localhost.localstack.cloud
+*.opensearch.localhost.localstack.cloud
+*.s3-website.localhost.localstack.cloud
+*.s3.localhost.localstack.cloud
+*.scm.localhost.localstack.cloud
+*.dkr.ecr.{region}.localhost.localstack.cloud
