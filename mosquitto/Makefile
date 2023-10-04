@@ -1,7 +1,7 @@
 IMAGE_NAME := mosquitto_builder
 CONTAINER_NAME := mosquitto_runner
 VERSION := v2.0.12
-DEB_RELEASE := bullseye
+DEB_RELEASE := bookworm
 
 .PHONY: all
 all: amd64 arm64
