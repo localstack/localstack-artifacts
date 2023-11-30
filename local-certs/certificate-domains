@@ -11,3 +11,4 @@ localhost.localstack.cloud
 *.dkr.ecr.{region}.localhost.localstack.cloud
 *.lambda-url.{region}.localhost.localstack.cloud
 sqs.{region}.localhost.localstack.cloud
+*.snowflake.localhost.localstack.cloud
