@@ -5,6 +5,7 @@ localhost.localstack.cloud
 *.elb.localhost.localstack.cloud
 *.execute-api.localhost.localstack.cloud
 *.opensearch.localhost.localstack.cloud
+*.{region}.opensearch.localhost.localstack.cloud
 *.s3-website.localhost.localstack.cloud
 *.s3.localhost.localstack.cloud
 *.scm.localhost.localstack.cloud
