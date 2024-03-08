@@ -1,7 +1,8 @@
 IMAGE_NAME := mosquitto_builder
 CONTAINER_NAME := mosquitto_runner
 VERSION := v2.0.12
-DEB_RELEASE := bookworm
+DEB_RELEASE := mantic
+OS := ubuntu
 
 .PHONY: all
 all: amd64 arm64
@@ -13,7 +14,8 @@ amd64 arm64:
 		--build-arg VERSION=$(VERSION) \
 		--build-arg DEB_RELEASE=$(DEB_RELEASE) \
 		--platform linux/$@ \
-		-t $(IMAGE_NAME) .
+		-t $(IMAGE_NAME) \
+		-f Dockerfile.$(OS) .
 	docker run \
 		--platform linux/$@ \
 		-it --rm -d --name $(CONTAINER_NAME) $(IMAGE_NAME) bash
