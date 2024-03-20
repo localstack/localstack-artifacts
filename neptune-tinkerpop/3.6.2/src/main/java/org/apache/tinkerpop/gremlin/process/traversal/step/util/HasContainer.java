@@ -110,12 +110,11 @@ public class HasContainer implements Serializable, Cloneable, Predicate<Element>
             }
         }
 
-        class LabelWithin implements BiPredicate<String, String[]> {
-            public boolean test(String label, String[] labels) {
+        class LabelWithin implements BiPredicate<String, List<String>> {
+            public boolean test(String label, List<String> labels) {
                 if (label == null) return false;
-                final List<String> labelsList = Arrays.asList(labels);
                 for (String partialLabel: label.split(LABEL_DELIMITER)) {
-                    if (labelsList.contains(partialLabel)) {
+                    if (labels.contains(partialLabel)) {
                         return true;
                     }
                 }
