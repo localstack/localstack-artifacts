@@ -125,8 +125,24 @@ public class HasContainer implements Serializable, Cloneable, Predicate<Element>
 
         if (this.predicate.getBiPredicate() == Compare.eq && this.predicate.getValue() instanceof String) {
             this.predicate = new P(new LabelEquals(), this.predicate.getValue());
-        } else if (this.predicate.getBiPredicate() == Contains.within && this.predicate.getValue() instanceof String[]) {
-            this.predicate = new P(new LabelWithin(), this.predicate.getValue());
+        } else if (this.predicate.getBiPredicate() == Contains.within){
+            if (this.predicate.getValue() instanceof String[]) {
+                // this should catch all hasLabel('LabelX') requests
+                final List<String> labelsList = Arrays.asList((String[])this.predicate.getValue());
+                this.predicate = new P(new LabelWithin(), labelsList);
+            } else if (this.predicate.getValue() instanceof List){
+                // this should handle the traverse logic for hasLabel('LabelX', 'LabelXYZ') e.g. any match from that list
+                boolean validatedAllStrings = true;
+                for (Object s : (List) this.predicate.getValue()){
+                    // not sure if we can rely on having only Strings here
+                    // verify the content before casting
+                    if(! (s instanceof String)){
+                        validatedAllStrings = false;
+                        break;
+                    }
+                }
+                if (validatedAllStrings) this.predicate = new P(new LabelWithin(), this.predicate.getValue());
+            }
         }
 
         /* end patch for localstack */
