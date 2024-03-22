@@ -19,6 +19,15 @@
             <artifactId>gremlin-core</artifactId>
             <version>3.6.2</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.tinkerpop</groupId>
+            <artifactId>tinkergraph-gremlin</artifactId>
+            <version>3.6.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tinkerpop</groupId>
+            <artifactId>gremlin-test</artifactId>
+            <version>3.6.2</version>
+        </dependency>
     </dependencies>
-
 </project>
