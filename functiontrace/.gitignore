@@ -1,0 +1,8 @@
+amd64/**/*
+!amd64/functiontrace-server
+arm64/**/*
+!arm64/functiontrace-server
+/functiontrace-server*
+# TODO: the arm binary is huge when cross-compiled
+arm64/functiontrace-server
+/.devenv
