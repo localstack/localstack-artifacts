@@ -1,3 +1,4 @@
 .idea/
 kafka-server.iml
 local.properties
+kafka-embedded-env/

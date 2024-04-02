@@ -6,6 +6,7 @@ plugins {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
     maven {
       url 'https://packages.confluent.io/maven'
@@ -16,8 +17,7 @@ repositories {
 }
 
 dependencies {
-    // note: later versions of kafka-embedded-env require Java 17+, whereas we only have JRE 11 installed in the LS container
-    implementation("no.nav:kafka-embedded-env:3.1.0") {
+    implementation("no.nav:kafka-embedded-env:3.2.7") {
         exclude group: 'log4j', module: 'log4j'
         // exclude libs to prevent CVEs with certain versions
         exclude group: 'io.confluent', module: 'confluent-log4j'
