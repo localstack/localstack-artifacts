@@ -8,3 +8,5 @@
  */
 
 rootProject.name = "tinkerpop-id-manager"
+
+include("3.6", "3.7")
