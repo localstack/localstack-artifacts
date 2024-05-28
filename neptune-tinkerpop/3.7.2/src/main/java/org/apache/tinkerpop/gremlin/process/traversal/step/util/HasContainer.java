@@ -21,6 +21,7 @@ package org.apache.tinkerpop.gremlin.process.traversal.step.util;
 import org.apache.tinkerpop.gremlin.process.traversal.Compare;
 import org.apache.tinkerpop.gremlin.process.traversal.Contains;
 import org.apache.tinkerpop.gremlin.process.traversal.P;
+import org.apache.tinkerpop.gremlin.process.traversal.PBiPredicate;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.apache.tinkerpop.gremlin.structure.Property;
 import org.apache.tinkerpop.gremlin.structure.T;
@@ -98,7 +99,7 @@ public class HasContainer implements Serializable, Cloneable, Predicate<Element>
 
         // add comparison predicates to support the multi-label syntax `label1::label2::label3`
 
-        class LabelEquals implements BiPredicate<String, String> {
+        class LabelEquals implements PBiPredicate<String, String> {
             public boolean test(String label, String otherLabel) {
                 if (label == null) return false;
                 for (String partialLabel: label.split(LABEL_DELIMITER)) {
@@ -110,7 +111,7 @@ public class HasContainer implements Serializable, Cloneable, Predicate<Element>
             }
         }
 
-        class LabelWithin implements BiPredicate<String, List<String>> {
+        class LabelWithin implements PBiPredicate<String, List<String>> {
             public boolean test(String label, List<String> labels) {
                 if (label == null) return false;
                 for (String partialLabel: label.split(LABEL_DELIMITER)) {
