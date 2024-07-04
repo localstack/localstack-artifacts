@@ -2,7 +2,7 @@
 
 runDir=$(pwd)
 
-versions=("3.6.2" "3.7.2")
+versions=("3.4.11" "3.5.2" "3.6.2" "3.6.5" "3.7.1" "3.7.2")
 for version in "${versions[@]}"; do
   (
     cd $version
