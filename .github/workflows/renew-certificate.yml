@@ -1,0 +1,67 @@
+name: Renew Certificate
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/renew-certificate.yml"
+      - "local-certs/certificate-domains"
+      - "local-certs/certificate-regions"
+      - "local-certs/generate-domains.py"
+      - "local-certs/generate-certificate.sh"
+    branches:
+      - master
+  push:
+    paths:
+      - ".github/workflows/renew-certificate.yml"
+      - "local-certs/certificate-domains"
+      - "local-certs/certificate-regions"
+      - "local-certs/generate-domains.py"
+      - "local-certs/generate-certificate.sh"
+    branches:
+      - master
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 6 1 * *'
+
+env:
+  git_user_name: localstack[bot]
+  git_user_email: localstack-bot@users.noreply.github.com
+
+permissions:
+  contents: write
+
+jobs:
+  renew-certificate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Install Certbot
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          pip install certbot certbot-plugin-gandi
+      - name: Generate certificate
+        working-directory: "local-certs"
+        env:
+          CERTBOT_ARGS: "${{ github.ref != 'refs/heads/master' && '--staging' || '' }}"
+          DNS_API_KEY: "${{ secrets.DNS_API_KEY }}"
+          CERTBOT_EMAIL: ${{ env.git_user_email }}
+        run: |
+          ./generate-certificate.sh
+      - name: Commit certificate
+        working-directory: "local-certs"
+        if: github.ref == 'refs/heads/master'
+        run: |
+          git config user.name ${{ env.git_user_name }}
+          git config user.email ${{ env.git_user_email }}
+          git add server.key
+          expiry_date=$(date --date="$(openssl x509 -enddate -noout -in server.key | cut -d= -f 2)" --utc --iso-8601)
+          git commit -m "update local certificate keys (new expiry date: $expiry_date)"
+          git push
+     
