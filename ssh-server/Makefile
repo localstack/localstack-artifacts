@@ -11,6 +11,6 @@ amd64 arm64:
 	docker run --platform linux/$@ -it --rm -d --name $(CONTAINER_NAME) $(IMAGE_NAME) bash
 	docker cp $(CONTAINER_NAME):/tmp/dropbear/dropbear $@/dropbear
 	chmod +x $@/dropbear
-	docker cp $(CONTAINER_NAME):/usr/bin/scp $@/scp
+	docker cp $(CONTAINER_NAME):/tmp/dropbear/scp $@/scp
 	chmod +x $@/scp
 	docker stop $(CONTAINER_NAME)
