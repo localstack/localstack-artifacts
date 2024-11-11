@@ -1,6 +1,6 @@
 IMAGE_NAME := mosquitto_builder
 CONTAINER_NAME := mosquitto_runner
-VERSION := v2.0.12
+VERSION := v2.0.20
 DEB_RELEASE := bookworm
 
 .PHONY: all
