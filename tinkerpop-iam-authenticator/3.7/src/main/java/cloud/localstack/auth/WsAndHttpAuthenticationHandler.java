@@ -15,6 +15,7 @@ import io.netty.handler.codec.http.FullHttpMessage;
 import io.netty.handler.codec.http.HttpMessage;
 
 import cloud.localstack.authz.HttpIamAuthorizationHandler;
+import cloud.localstack.authz.WsAuthorizationHandler;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.UPGRADE;
 import static io.netty.handler.codec.http.HttpHeaderNames.CONNECTION;
@@ -30,6 +31,8 @@ public class WsAndHttpAuthenticationHandler extends AbstractAuthenticationHandle
     private static final Logger logger = LoggerFactory.getLogger(WsAndHttpAuthenticationHandler.class);
     private final AbstractAuthenticationHandler wsAuthenticationHandler;
     private final AbstractAuthenticationHandler httpAuthenticationHandler;
+    private final ChannelInboundHandlerAdapter wsAuthorizationHandler;
+    private final ChannelInboundHandlerAdapter httpAuthorizationHandler;
 
     final String LS_AUTH = "ls-authentication";
 
@@ -37,6 +40,8 @@ public class WsAndHttpAuthenticationHandler extends AbstractAuthenticationHandle
         super(authenticator, authorizer);
         this.wsAuthenticationHandler = new WsIamAuthenticationHandler(authenticator, authorizer, settings);
         this.httpAuthenticationHandler = new HttpIamAuthenticationHandler(authenticator, authorizer, settings);
+        this.wsAuthorizationHandler = new WsAuthorizationHandler(authorizer);
+        this.httpAuthorizationHandler = new HttpIamAuthorizationHandler(authorizer);
     }
 
     @Override
@@ -52,10 +57,9 @@ public class WsAndHttpAuthenticationHandler extends AbstractAuthenticationHandle
             pipeline.addAfter(PIPELINE_AUTHENTICATOR, LS_AUTH, httpAuthenticationHandler);
 
             if (authorizer != null) {
-                final ChannelInboundHandlerAdapter authorizationHandler = new HttpIamAuthorizationHandler(authorizer);
                 pipeline.remove(PIPELINE_AUTHORIZER);
                 // Then add the authorizer handler
-                pipeline.addAfter(LS_AUTH, PIPELINE_AUTHORIZER, authorizationHandler);
+                pipeline.addAfter(LS_AUTH, PIPELINE_AUTHORIZER, httpAuthorizationHandler);
             }
         } else {
             // add WS pipeline handlers
@@ -63,6 +67,7 @@ public class WsAndHttpAuthenticationHandler extends AbstractAuthenticationHandle
                 pipeline.remove(LS_AUTH);
             }
             pipeline.addAfter(PIPELINE_AUTHENTICATOR, LS_AUTH, wsAuthenticationHandler);
+            pipeline.replace(PIPELINE_AUTHORIZER, PIPELINE_AUTHORIZER, wsAuthorizationHandler);
         }
         ctx.fireChannelRead(msg);
     }

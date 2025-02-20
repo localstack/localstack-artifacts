@@ -27,7 +27,8 @@ import cloud.localstack.auth.HeaderAuthenticator.HeaderNegotiator;
 
 /**
  * Http authentication handler
- * When we receive an http request this handler extract the credentials from the headers and registers the user
+ * When we receive an http request this handler extract the credentials from the
+ * headers and registers the user
  */
 @ChannelHandler.Sharable
 public class HttpIamAuthenticationHandler extends AbstractAuthenticationHandler {
