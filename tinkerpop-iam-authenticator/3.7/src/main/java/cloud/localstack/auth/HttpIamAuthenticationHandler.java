@@ -58,7 +58,6 @@ public class HttpIamAuthenticationHandler extends AbstractAuthenticationHandler 
                 negotiator.get().evaluateHeader(authorizationHeader);
                 AuthenticatedUser user = negotiator.get().getAuthenticatedUser();
                 ctx.channel().attr(StateKey.AUTHENTICATED_USER).set(user);
-                logger.info("Authenticated user: {}", user.getName());
             } catch (Exception ex) {
                 // TODO validate error message returned by aws
                 sendHttpError(ctx, msg);

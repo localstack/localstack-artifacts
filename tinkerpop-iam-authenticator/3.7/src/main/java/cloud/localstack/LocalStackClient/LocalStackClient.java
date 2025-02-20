@@ -76,7 +76,6 @@ public class LocalStackClient {
             StringBuilder response = new StringBuilder();
             String line;
             while ((line = rd.readLine()) != null) {
-                logger.info("line in response: {}", line);
                 response.append(line);
                 response.append('\n');
             }

@@ -54,19 +54,12 @@ public class IamAuthorizer implements Authorizer {
         resourceArn = config.get("resourceArn").toString();
 
         localStackClient = new LocalStackClient(config.get("localstackHost").toString());
-
         logger.info("enforceIam: {}", enforceIam);
-        logger.info("regionName: {}", regionName);
-        logger.info("resourceArn: {}", resourceArn);
     }
 
     @Override
     public Bytecode authorize(AuthenticatedUser user, Bytecode bytecode, Map<String, String> aliases)
             throws AuthorizationException {
-        logger.info("inside bytecode");
-
-        final String bytecodeString = bytecode.toString();
-        logger.info("bytecode: {}", bytecodeString);
 
         boolean containsWrite = false;
         boolean containsDelete = false;
@@ -130,8 +123,7 @@ public class IamAuthorizer implements Authorizer {
         }
         // Read action seems to always be present?
         actions.add(READ_ACTION);
-
-        logger.info("access key id : {}", user.getName());
+        logger.info("authorizing actions: {}", actions.toString());
 
         try {
             CheckActionAllowedResponse response = localStackClient.evaluatePermission(user.getName(), regionName,

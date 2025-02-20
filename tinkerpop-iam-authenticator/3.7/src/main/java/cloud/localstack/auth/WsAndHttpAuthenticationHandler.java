@@ -42,7 +42,6 @@ public class WsAndHttpAuthenticationHandler extends AbstractAuthenticationHandle
     @Override
     public void channelRead(final ChannelHandlerContext ctx, final Object msg) throws Exception {
         final ChannelPipeline pipeline = ctx.pipeline();
-        logger.info("pipeline: {}", pipeline.names());
 
         if (msg instanceof FullHttpMessage && !isWebSocket((HttpMessage) msg)) {
             // Add http handlers
@@ -58,8 +57,6 @@ public class WsAndHttpAuthenticationHandler extends AbstractAuthenticationHandle
                 // Then add the authorizer handler
                 pipeline.addAfter(LS_AUTH, PIPELINE_AUTHORIZER, authorizationHandler);
             }
-            logger.info("pipeline: {}", pipeline.toMap().get("request-handler").getClass());
-
         } else {
             // add WS pipeline handlers
             if (pipeline.get(LS_AUTH) != null) {
