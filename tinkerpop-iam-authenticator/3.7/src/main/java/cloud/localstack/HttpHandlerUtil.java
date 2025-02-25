@@ -3,7 +3,7 @@
 // There might some modification needed in the future to keep aligning with AWS responses
 
 // Current modifications:
-// added the following block to match th error message of AWS
+// added the following block to match the error message of AWS
 
 // node.put("detailedMessage", message);
 // if (status == FORBIDDEN) {
@@ -267,10 +267,31 @@ public class HttpHandlerUtil {
         errorMeter.mark();
         final ObjectNode node = mapper.createObjectNode();
         node.put("message", message);
+
+        /*
+         * 
+         * 
+         * Localstack patch of the http handler util
+         * AWS adds to keys to the response that are not part of the gremlin server
+         * standard response
+         * `detailedMessage` and `code`. We are adding them here as to increase parity.
+         * 
+         * 
+         */
         node.put("detailedMessage", message);
+
         if (status == FORBIDDEN) {
             node.put("code", "AccessDeniedException");
         }
+
+        /*
+         * 
+         * 
+         * End of Localstack patch
+         * 
+         * 
+         */
+
         if (t.isPresent()) {
             // "Exception-Class" needs to go away - didn't realize it was named that way
             // during review for some reason.

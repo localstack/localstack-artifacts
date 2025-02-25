@@ -16,10 +16,10 @@ import org.apache.tinkerpop.gremlin.util.message.RequestMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import cloud.localstack.LocalStackClient.ActionResult;
-import cloud.localstack.LocalStackClient.CheckActionAllowedResponse;
-import cloud.localstack.LocalStackClient.LocalStackClient;
 import cloud.localstack.auth.IamAuthenticator;
+import cloud.localstack.localstack_client.ActionResult;
+import cloud.localstack.localstack_client.CheckActionAllowedResponse;
+import cloud.localstack.localstack_client.LocalStackClient;
 
 public class IamAuthorizer implements Authorizer {
     // These steps were taken by inspecting the steps that implemented `package
@@ -142,15 +142,15 @@ public class IamAuthorizer implements Authorizer {
     }
 
     private String buildUnauthorizeResponseMessage(CheckActionAllowedResponse response, List<String> actions) {
-        if (response.explicit_deny.size() == 0 && response.implicit_deny.size() == 0) {
+        if (response.explicitDeny.size() == 0 && response.implicitDeny.size() == 0) {
             return "Forbidden.";
         }
         List<String> deniedAction = new ArrayList<String>();
 
-        for (ActionResult action : response.explicit_deny) {
+        for (ActionResult action : response.explicitDeny) {
             deniedAction.add(action.action);
         }
-        for (ActionResult action : response.implicit_deny) {
+        for (ActionResult action : response.implicitDeny) {
             deniedAction.add(action.action);
         }
         String actionString = deniedAction.toString().replace("[", "").replace("]", "");

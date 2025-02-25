@@ -18,7 +18,7 @@ public class LocalStackChannelizer extends WsAndHttpChannelizer {
         super.configure(pipeline);
 
         // Adding a handler to get the signature from the header
-        if (authenticator != null) {
+        if (this.authenticator != null) {
             pipeline.addBefore("ws-user-agent-handler", "ws-iam-sig-handler", new SigV4Handler());
         }
     }

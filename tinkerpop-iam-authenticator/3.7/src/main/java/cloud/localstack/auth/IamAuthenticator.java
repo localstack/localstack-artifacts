@@ -67,7 +67,7 @@ public class IamAuthenticator implements HeaderAuthenticator {
                 logger.info("Failed to get account id from authorization signature");
                 throw new AuthenticationException("Forbidden");
             }
-            logger.info("user found in credentials: {}", userId);
+            logger.debug("user found in credentials: {}", userId);
             complete = true;
         }
 

@@ -8,7 +8,7 @@ public final class LsStateKey {
     }
 
     /**
-     * The key for signature v4 of the current request
+     * The key for the requests authorization header
      */
     public static final AttributeKey<String> SIGNATURE_V4 = AttributeKey.valueOf("signatureV4");
     public static final AttributeKey<HeaderNegotiator> IAM_NEGOTIATOR = AttributeKey.valueOf("iamNegotiator");

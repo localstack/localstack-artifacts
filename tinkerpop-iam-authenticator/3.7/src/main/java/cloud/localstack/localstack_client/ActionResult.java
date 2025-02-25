@@ -1,4 +1,4 @@
-package cloud.localstack.LocalStackClient;
+package cloud.localstack.localstack_client;
 
 public class ActionResult {
     public String action;

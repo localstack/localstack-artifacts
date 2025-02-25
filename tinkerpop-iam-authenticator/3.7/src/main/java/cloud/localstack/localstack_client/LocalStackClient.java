@@ -1,4 +1,4 @@
-package cloud.localstack.LocalStackClient;
+package cloud.localstack.localstack_client;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -24,17 +24,22 @@ import groovy.json.JsonOutput;
  */
 public class LocalStackClient {
     private static final Logger logger = LoggerFactory.getLogger(LocalStackClient.class);
-    private static String localstackHost;
+    private final String localstackEndpoint;
     private static ObjectMapper objectMapper = new ObjectMapper();
 
-    public LocalStackClient(String host) {
-        localstackHost = host;
+    public LocalStackClient(final String localstackEndpoint) {
+        this.localstackEndpoint = localstackEndpoint;
+        configureObjectMapper();
+    }
+    
+    private static void configureObjectMapper() {
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
     public CheckActionAllowedResponse evaluatePermission(String userName, String regionName, String resourceArn,
             List<String> actions) {
-        // TODO simplify this method and extract the request code that can be reusable for other calls
+        // TODO simplify this method and extract the request code that can be reusable
+        // for other calls
         HttpURLConnection connection = null;
 
         List<Map<String, String>> requiredPermissions = new ArrayList<Map<String, String>>();
@@ -51,7 +56,7 @@ public class LocalStackClient {
 
             // Create connection
 
-            URL url = new URL(String.format("http://%s/_aws/iam/check-actions-allowed", localstackHost));
+            URL url = new URL(String.format("http://%s/_aws/iam/check-actions-allowed", this.localstackEndpoint));
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
             connection.setRequestProperty("Content-Type",
