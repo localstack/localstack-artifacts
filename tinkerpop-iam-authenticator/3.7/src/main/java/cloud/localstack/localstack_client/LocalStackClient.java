@@ -16,8 +16,6 @@ import org.apache.tinkerpop.shaded.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import groovy.json.JsonOutput;
-
 /*
  * Localstack client
  * Will handle all request made to LocalStack
@@ -27,13 +25,12 @@ public class LocalStackClient {
     private final String localstackEndpoint;
     private static ObjectMapper objectMapper = new ObjectMapper();
 
+    static {
+        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    }
+
     public LocalStackClient(final String localstackEndpoint) {
         this.localstackEndpoint = localstackEndpoint;
-        configureObjectMapper();
-    }
-    
-    private static void configureObjectMapper() {
-        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
     public CheckActionAllowedResponse evaluatePermission(String userName, String regionName, String resourceArn,
@@ -52,7 +49,7 @@ public class LocalStackClient {
         body.put("required_permissions", requiredPermissions);
 
         try {
-            String json_payload = JsonOutput.toJson(body);
+            String json_payload = objectMapper.writeValueAsString(body);
 
             // Create connection
 
