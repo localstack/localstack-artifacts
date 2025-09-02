@@ -1,7 +1,7 @@
 IMAGE_NAME := mosquitto_builder
 CONTAINER_NAME := mosquitto_runner
 VERSION := v2.0.20
-DEB_RELEASE := bookworm
+DEB_RELEASE := trixie
 
 .PHONY: all
 all: amd64 arm64
