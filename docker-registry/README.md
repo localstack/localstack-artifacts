@@ -5,6 +5,7 @@ on amd64 and arm64. Each ZIP contains one executable named `registry.<os>-<arch>
 The disposable build container uses Go 1.26.10 and the pinned upstream release commit,
 with overrides for `golang.org/x/net` v0.60.0, `github.com/klauspost/compress` v1.18.7,
 and `github.com/go-jose/go-jose/v4` v4.1.6. Binaries report `v3.1.2-localstack.2`.
+The Go image and dependency override versions are defined together in `Dockerfile`.
 
 Upstream v3.1.2 publishes only Linux binaries and still includes Go 1.26.8,
 x/net v0.59.0, and compress v1.18.4, so it cannot replace this patched build.

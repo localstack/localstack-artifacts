@@ -8,7 +8,9 @@ git clone --branch v3.1.2 --depth 1 https://github.com/distribution/distribution
 cd distribution
 test "$(git rev-parse HEAD)" = "$registry_commit"
 
-go get golang.org/x/net@v0.60.0 github.com/klauspost/compress@v1.18.7 github.com/go-jose/go-jose/v4@v4.1.6
+go get "golang.org/x/net@${X_NET_VERSION}" \
+    "github.com/klauspost/compress@${COMPRESS_VERSION}" \
+    "github.com/go-jose/go-jose/v4@${GO_JOSE_VERSION}"
 go mod vendor
 
 mkdir -p ../dist
