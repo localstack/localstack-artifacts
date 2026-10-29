@@ -5,9 +5,10 @@ git clone --branch "$REGISTRY_VERSION" --depth 1 https://github.com/distribution
 cd distribution
 test "$(git rev-parse HEAD)" = "$REGISTRY_COMMIT"
 
-go get "golang.org/x/net@${X_NET_VERSION}" \
-    "github.com/klauspost/compress@${COMPRESS_VERSION}" \
-    "github.com/go-jose/go-jose/v4@${GO_JOSE_VERSION}"
+read -r -a module_overrides <<< "${GO_MODULE_OVERRIDES:-}"
+if (( ${#module_overrides[@]} )); then
+    go get "${module_overrides[@]}"
+fi
 go mod vendor
 
 mkdir -p ../dist

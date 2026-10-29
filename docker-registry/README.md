@@ -7,6 +7,8 @@ with overrides for `golang.org/x/net` v0.60.0, `github.com/klauspost/compress` v
 and `github.com/go-jose/go-jose/v4` v4.1.6. Binaries report `v3.1.2-localstack.2`.
 The Go image, upstream release and commit, LocalStack revision, and dependency override
 versions are defined together in `Dockerfile`.
+`GO_MODULE_OVERRIDES` is a space-separated list of `module@version` entries; add or
+remove dependencies there without changing the script. An empty list skips overrides.
 
 Upstream v3.1.2 publishes only Linux binaries and still includes Go 1.26.8,
 x/net v0.59.0, and compress v1.18.4, so it cannot replace this patched build.
