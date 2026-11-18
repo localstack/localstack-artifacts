@@ -573,10 +573,10 @@ index 0000000..c4c238b
 +}
 diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java
 new file mode 100644
-index 0000000..43ecaa9
+index 0000000..102758d
 --- /dev/null
 +++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java
-@@ -0,0 +1,297 @@
+@@ -0,0 +1,293 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -598,10 +598,9 @@ index 0000000..43ecaa9
 +import com.google.common.collect.ImmutableList;
 +import io.trino.hive.formats.line.Column;
 +import io.trino.spi.Page;
-+import io.trino.spi.block.ArrayBlock;
 +import io.trino.spi.block.Block;
-+import io.trino.spi.block.RowBlock;
 +import io.trino.spi.block.SqlMap;
++import io.trino.spi.block.SqlRow;
 +import io.trino.spi.type.ArrayType;
 +import io.trino.spi.type.BigintType;
 +import io.trino.spi.type.BooleanType;
@@ -685,9 +684,15 @@ index 0000000..43ecaa9
 +            case DateType _ -> DATE_ENCODER;
 +            case DecimalType t -> decimalEncoder(t);
 +            case TimestampType t -> timestampEncoder(t);
-+            case RowType t -> RowEncoder.forFields(t.getFields());
++            case RowType t -> {
++                RowEncoder rowEncoder = RowEncoder.forFields(t.getFields());
++                yield (writer, block, position) -> {
++                    SqlRow row = t.getObject(block, position);
++                    rowEncoder.encodeStruct(writer, row::getRawFieldBlock, row.getRawIndex());
++                };
++            }
 +            case MapType t -> new MapEncoder(t, t.getKeyType(), encoderForType(t.getValueType()));
-+            case ArrayType t -> new ArrayEncoder(encoderForType(t.getElementType()));
++            case ArrayType t -> new ArrayEncoder(t, encoderForType(t.getElementType()));
 +            default -> throw new IllegalArgumentException(String.format("Unsupported type: %s", type));
 +        };
 +        return wrapEncoder(encoder);
@@ -707,7 +712,6 @@ index 0000000..43ecaa9
 +    }
 +
 +    private record RowEncoder(List<String> fieldNames, List<BlockEncoder> fieldEncoders)
-+            implements BlockEncoder
 +    {
 +        private static RowEncoder forFields(List<RowType.Field> fields)
 +        {
@@ -722,14 +726,6 @@ index 0000000..43ecaa9
 +            return new RowEncoder(fieldNamesBuilder.build(), fieldEncodersBuilder.build());
 +        }
 +
-+        @Override
-+        public void encode(IonWriter writer, Block block, int position)
-+                throws IOException
-+        {
-+            encodeStruct(writer, ((RowBlock) block)::getFieldBlock, position);
-+        }
-+
-+        // used for encoding 'top-level' rows by the IonEncoder
 +        private void encodeStruct(IonWriter writer, IntFunction<Block> blockSelector, int position)
 +                throws IOException
 +        {
@@ -782,7 +778,7 @@ index 0000000..43ecaa9
 +        }
 +    }
 +
-+    private record ArrayEncoder(BlockEncoder elementEncoder)
++    private record ArrayEncoder(ArrayType arrayType, BlockEncoder elementEncoder)
 +            implements BlockEncoder
 +    {
 +        @Override
@@ -790,7 +786,7 @@ index 0000000..43ecaa9
 +                throws IOException
 +        {
 +            writer.stepIn(IonType.LIST);
-+            Block elementBlock = ((ArrayBlock) block).getArray(position);
++            Block elementBlock = arrayType.getObject(block, position);
 +            for (int i = 0; i < elementBlock.getPositionCount(); i++) {
 +                elementEncoder.encode(writer, elementBlock, i);
 +            }

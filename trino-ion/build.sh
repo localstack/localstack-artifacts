@@ -4,16 +4,17 @@
 #
 # usage: ./build.sh [WORK_DIR]
 #
-# WORK_DIR (default: ./build, ignored by git) holds the downloads, about 1 GB, which later runs
-# reuse. Needs bash, curl, tar, git and python3; runs on Linux and macOS, x86_64 and arm64.
+# WORK_DIR (default: ./build, ignored by git) caches the downloads for later runs.
+# Needs bash, curl, tar, unzip, git and python3 on Linux or macOS (x86_64 or arm64).
 # Every input is pinned, so a rebuild reproduces the committed jars: `git status` stays clean.
 set -euo pipefail
 export LC_ALL=C
 
 TRINO_VERSION=484
 TRINO_COMMIT=e2d50bb733e193607c44be84ad80ce2430ba1d01 # tag 484
-TRINO_TARBALL_URL=https://github.com/trinodb/trino/releases/download/$TRINO_VERSION/trino-server-$TRINO_VERSION.tar.gz
-TRINO_TARBALL_SHA256=4b2d05f2e52fcc156b2f137cabc886353e5dde782d12bf71e290ffc13463b81a
+TRINO_RELEASE=https://github.com/trinodb/trino/releases/download/$TRINO_VERSION
+TRINO_HIVE_ARCHIVE=trino-hive-$TRINO_VERSION.zip
+TRINO_HIVE_SHA256=7b08195ac57ed5681419f37f624b35f66363cfb2416cbafc423d2a63155b9101
 # the Trino sources the patch edits, with their sha256 at TRINO_COMMIT
 TRINO_SOURCES="
 lib/trino-hive-formats/src/main/java/io/trino/hive/formats/HiveClassNames.java a3d31aaae0f4104437a1b8e47e75b00b4721c373cd370aa3bd242c487eda4163
@@ -23,6 +24,12 @@ plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveWriterFactory.java 60a5
 "
 
 MAVEN=https://repo1.maven.org/maven2
+# Server libraries referenced by the patched sources and missing from the plugin ZIP.
+TRINO_COMPILE_DEPS="
+io/trino/trino-spi/$TRINO_VERSION/trino-spi-$TRINO_VERSION.jar bbe4070a9acdabe5ea552f23bf8fe2b885f2713f762cce5f4e35303c85ba84f4
+io/airlift/slice/2.9/slice-2.9.jar 6f4ca645a3bd06f324b9c14988fab223e4e5b31b0bed8bc6297460832f0314c4
+com/fasterxml/jackson/core/jackson-annotations/2.22/jackson-annotations-2.22.jar 21ddb598807d3a51a876704eb979d9296e1c6a6f47ab1826ff88c6d6a127a2d0
+"
 ION_JAVA_URL=$MAVEN/com/amazon/ion/ion-java/1.11.9/ion-java-1.11.9.jar
 ION_JAVA_SHA256=7f7e4914ac79d578969d75c040e3b3adce215b32281bc65d9d6aca411553b5dd
 ION_PATH_URL=$MAVEN/com/amazon/ion/ion-java-path-extraction/1.5.0/ion-java-path-extraction-1.5.0.jar
@@ -63,23 +70,28 @@ download() { # URL SHA256 FILE: skipped when FILE already has SHA256
 }
 
 echo "== downloading"
-download "$TRINO_TARBALL_URL" "$TRINO_TARBALL_SHA256" "$DOWNLOADS/trino-server-$TRINO_VERSION.tar.gz"
+download "$TRINO_RELEASE/$TRINO_HIVE_ARCHIVE" "$TRINO_HIVE_SHA256" "$DOWNLOADS/$TRINO_HIVE_ARCHIVE"
 download "$ION_JAVA_URL" "$ION_JAVA_SHA256" "$DOWNLOADS/$(basename "$ION_JAVA_URL")"
 download "$ION_PATH_URL" "$ION_PATH_SHA256" "$DOWNLOADS/$(basename "$ION_PATH_URL")"
 download "$JDK_URL" "$JDK_SHA256" "$DOWNLOADS/$(basename "$JDK_URL")"
 while read -r path sum; do
   [ -z "$path" ] || download "https://raw.githubusercontent.com/trinodb/trino/$TRINO_COMMIT/$path" "$sum" "$DOWNLOADS/src/$path"
 done <<<"$TRINO_SOURCES"
+COMPILE_DEPS_CP=""
+while read -r artifact sum; do
+  [ -n "$artifact" ] || continue
+  jar="$DOWNLOADS/${artifact##*/}"
+  download "$MAVEN/$artifact" "$sum" "$jar"
+  COMPILE_DEPS_CP="$COMPILE_DEPS_CP:$jar"
+done <<<"$TRINO_COMPILE_DEPS"
 
-echo "== extracting Trino $TRINO_VERSION and JDK $JDK_VERSION"
-# the whole server, because most jars in plugin/hive are hard links to files in other directories
-TRINO_HOME="$WORK/trino-server-$TRINO_VERSION"
+echo "== extracting Hive plugin and JDK"
+PLUGIN="$WORK/trino-hive-$TRINO_VERSION"
 JAVA_HOME="$WORK/jdk-$JDK_VERSION"
-rm -rf "$TRINO_HOME" "$JAVA_HOME"
-tar -xzf "$DOWNLOADS/trino-server-$TRINO_VERSION.tar.gz" -C "$WORK"
+rm -rf "$PLUGIN" "$JAVA_HOME"
+unzip -q "$DOWNLOADS/$TRINO_HIVE_ARCHIVE" -d "$WORK"
 tar -xzf "$DOWNLOADS/$(basename "$JDK_URL")" -C "$WORK"
 if [ -d "$JAVA_HOME/Contents/Home" ]; then JAVA_HOME="$JAVA_HOME/Contents/Home"; fi # macOS
-PLUGIN="$TRINO_HOME/plugin/hive"
 FORMATS_JAR="$PLUGIN/io.trino_trino-hive-formats-$TRINO_VERSION.jar"
 HIVE_JAR="$PLUGIN/trino-hive-$TRINO_VERSION.jar"
 
@@ -93,7 +105,8 @@ git -C "$WORK/src" apply "$HERE/patches/ion-port-$TRINO_VERSION.patch"
 echo "== compiling"
 # the plugin's jars before the server's, as the plugin class loader sees them; in a fixed order
 CP="$DOWNLOADS/$(basename "$ION_JAVA_URL"):$DOWNLOADS/$(basename "$ION_PATH_URL")"
-for jar in "$PLUGIN"/*.jar "$TRINO_HOME"/lib/*.jar; do CP="$CP:$jar"; done
+for jar in "$PLUGIN"/*.jar; do CP="$CP:$jar"; done
+CP="$CP$COMPILE_DEPS_CP"
 JAVAC=("$JAVA_HOME/bin/javac" --release "$JDK_RELEASE" -g -parameters -proc:none -implicit:none -encoding UTF-8 -sourcepath "")
 rm -rf "$WORK/classes"
 mkdir -p "$WORK/classes/formats" "$WORK/classes/hive"
