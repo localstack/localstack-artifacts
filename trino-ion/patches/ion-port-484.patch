@@ -1,0 +1,1650 @@
+diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/HiveClassNames.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/HiveClassNames.java
+index deb186d..60931f3 100644
+--- a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/HiveClassNames.java
++++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/HiveClassNames.java
+@@ -27,6 +27,9 @@ public final class HiveClassNames
+     public static final String HUDI_PARQUET_REALTIME_INPUT_FORMAT = "org.apache.hudi.hadoop.realtime.HoodieParquetRealtimeInputFormat";
+     public static final String HUDI_INPUT_FORMAT = "com.uber.hoodie.hadoop.HoodieInputFormat";
+     public static final String HUDI_REALTIME_INPUT_FORMAT = "com.uber.hoodie.hadoop.realtime.HoodieRealtimeInputFormat";
++    public static final String ION_SERDE_CLASS = "com.amazon.ionhiveserde.IonHiveSerDe";
++    public static final String ION_INPUT_FORMAT = "com.amazon.ionhiveserde.formats.IonInputFormat";
++    public static final String ION_OUTPUT_FORMAT = "com.amazon.ionhiveserde.formats.IonOutputFormat";
+     public static final String JSON_SERDE_CLASS = "org.apache.hive.hcatalog.data.JsonSerDe";
+     public static final String LEGACY_JSON_SERDE_CLASS = "org.apache.hadoop.hive.serde2.JsonSerDe";
+     public static final String OPENX_JSON_SERDE_CLASS = "org.openx.data.jsonserde.JsonSerDe";
+diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoder.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoder.java
+new file mode 100644
+index 0000000..4c8ce65
+--- /dev/null
++++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoder.java
+@@ -0,0 +1,497 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package io.trino.hive.formats.ion;
++
++import com.amazon.ion.IonException;
++import com.amazon.ion.IonReader;
++import com.amazon.ion.IonType;
++import com.amazon.ion.IonWriter;
++import com.amazon.ion.Timestamp;
++import com.amazon.ion.system.IonTextWriterBuilder;
++import com.amazon.ionpathextraction.PathExtractor;
++import com.amazon.ionpathextraction.PathExtractorBuilder;
++import com.amazon.ionpathextraction.pathcomponents.Text;
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.ImmutableMap;
++import io.airlift.slice.Slices;
++import io.trino.hive.formats.DistinctMapKeys;
++import io.trino.hive.formats.line.Column;
++import io.trino.spi.PageBuilder;
++import io.trino.spi.StandardErrorCode;
++import io.trino.spi.TrinoException;
++import io.trino.spi.block.ArrayBlockBuilder;
++import io.trino.spi.block.BlockBuilder;
++import io.trino.spi.block.MapBlockBuilder;
++import io.trino.spi.block.RowBlockBuilder;
++import io.trino.spi.block.ValueBlock;
++import io.trino.spi.type.ArrayType;
++import io.trino.spi.type.BigintType;
++import io.trino.spi.type.BooleanType;
++import io.trino.spi.type.CharType;
++import io.trino.spi.type.Chars;
++import io.trino.spi.type.DateType;
++import io.trino.spi.type.DecimalType;
++import io.trino.spi.type.Decimals;
++import io.trino.spi.type.DoubleType;
++import io.trino.spi.type.Int128;
++import io.trino.spi.type.IntegerType;
++import io.trino.spi.type.LongTimestamp;
++import io.trino.spi.type.MapType;
++import io.trino.spi.type.RealType;
++import io.trino.spi.type.RowType;
++import io.trino.spi.type.SmallintType;
++import io.trino.spi.type.TimestampType;
++import io.trino.spi.type.Timestamps;
++import io.trino.spi.type.TinyintType;
++import io.trino.spi.type.Type;
++import io.trino.spi.type.VarbinaryType;
++import io.trino.spi.type.VarcharType;
++import io.trino.spi.type.Varchars;
++
++import java.io.IOException;
++import java.math.BigDecimal;
++import java.math.BigInteger;
++import java.math.RoundingMode;
++import java.time.LocalDate;
++import java.util.Arrays;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Locale;
++import java.util.Map;
++import java.util.Set;
++import java.util.function.BiConsumer;
++import java.util.function.BiFunction;
++import java.util.function.IntFunction;
++
++public class IonDecoder
++{
++    private final PathExtractor<PageBuilder> extractor;
++    private final List<Type> columnTypes;
++    private final boolean[] encountered;
++
++    /**
++     * Builds a decoder for the given columns and the configuration.
++     */
++    public IonDecoder(
++            List<Column> columns,
++            IonDecoderConfig decoderConfig)
++    {
++        ImmutableList.Builder<Type> columnTypesBuilder = ImmutableList.builder();
++        PathExtractorBuilder<PageBuilder> extractorBuilder = PathExtractorBuilder.<PageBuilder>standard()
++                .withMatchCaseInsensitive(!decoderConfig.caseSensitive());
++
++        for (int pos = 0; pos < columns.size(); pos++) {
++            Column column = columns.get(pos);
++            String name = column.name();
++            Type type = column.type();
++
++            BlockDecoder decoder = decoderForType(type);
++            BiFunction<IonReader, PageBuilder, Integer> callback = callbackFor(decoder, pos);
++            String extractionPath = decoderConfig.pathExtractors().get(name);
++            if (extractionPath == null) {
++                extractorBuilder.withSearchPath(List.of(new Text(name)), callback);
++            }
++            else {
++                extractorBuilder.withSearchPath(extractionPath, callback);
++            }
++
++            columnTypesBuilder.add(type);
++        }
++        extractor = extractorBuilder.buildStrict(decoderConfig.strictTyping());
++        columnTypes = columnTypesBuilder.build();
++        encountered = new boolean[columns.size()];
++    }
++
++    /**
++     * Decodes the next value from the IonReader and appends it to the PageBuilder.
++     * Not thread-safe. If you need to do concurrent decoding, make multiple decoders.
++     */
++    public void decode(IonReader ionReader, PageBuilder pageBuilder)
++    {
++        pageBuilder.declarePosition();
++        extractor.matchCurrentValue(ionReader, pageBuilder);
++        for (int i = 0; i < encountered.length; i++) {
++            if (!encountered[i]) {
++                pageBuilder.getBlockBuilder(i).appendNull();
++            }
++            encountered[i] = false;
++        }
++    }
++
++    public List<Type> getColumnTypes()
++    {
++        return columnTypes;
++    }
++
++    private BiFunction<IonReader, PageBuilder, Integer> callbackFor(BlockDecoder decoder, int pos)
++    {
++        return (ionReader, pageBuilder) -> {
++            BlockBuilder blockBuilder = pageBuilder.getBlockBuilder(pos);
++            // for "top-level" columns, we keep the last of any duplicate fields.
++            // this is consistent with the Ion Hive SerDe.
++            if (encountered[pos]) {
++                blockBuilder.resetTo(blockBuilder.getPositionCount() - 1);
++            }
++            else {
++                encountered[pos] = true;
++            }
++
++            decoder.decode(ionReader, pageBuilder.getBlockBuilder(pos));
++            return 0;
++        };
++    }
++
++    private interface BlockDecoder
++    {
++        void decode(IonReader reader, BlockBuilder builder);
++    }
++
++    private static BlockDecoder decoderForType(Type type)
++    {
++        return switch (type) {
++            case TinyintType t -> wrapDecoder(BYTE_DECODER, t, IonType.INT);
++            case SmallintType t -> wrapDecoder(SHORT_DECODER, t, IonType.INT);
++            case IntegerType t -> wrapDecoder(INT_DECODER, t, IonType.INT);
++            case BigintType t -> wrapDecoder(LONG_DECODER, t, IonType.INT);
++            case RealType t -> wrapDecoder(REAL_DECODER, t, IonType.FLOAT);
++            case DoubleType t -> wrapDecoder(FLOAT_DECODER, t, IonType.FLOAT);
++            case DecimalType t -> wrapDecoder(decimalDecoder(t), t, IonType.DECIMAL, IonType.INT, IonType.FLOAT);
++            case BooleanType t -> wrapDecoder(BOOL_DECODER, t, IonType.BOOL);
++            case DateType t -> wrapDecoder(DATE_DECODER, t, IonType.TIMESTAMP);
++            case TimestampType t -> wrapDecoder(timestampDecoder(t), t, IonType.TIMESTAMP);
++            case VarcharType t -> wrapDecoder(varcharDecoder(t), t, IonType.values());
++            case CharType t -> wrapDecoder(charDecoder(t), t, IonType.values());
++            case VarbinaryType t -> wrapDecoder(BINARY_DECODER, t, IonType.BLOB, IonType.CLOB);
++            case RowType t -> wrapDecoder(RowDecoder.forFields(t.getFields()), t, IonType.STRUCT);
++            case ArrayType t -> wrapDecoder(new ArrayDecoder(decoderForType(t.getElementType())), t, IonType.LIST, IonType.SEXP);
++            case MapType t -> wrapDecoder(new MapDecoder(t), t, IonType.STRUCT);
++            default -> throw new IllegalArgumentException(String.format("Unsupported type: %s", type));
++        };
++    }
++
++    /**
++     * Wraps decoders for common handling logic.
++     * <p>
++     * Handles un-typed and correctly typed null values.
++     * Throws for mistyped values, whether null or not.
++     * Delegates to Decoder for correctly-typed, non-null values.
++     * <p>
++     * This code treats all values as nullable.
++     */
++    private static BlockDecoder wrapDecoder(BlockDecoder decoder, Type trinoType, IonType... allowedTypes)
++    {
++        Set<IonType> allowedWithNull = new HashSet<>(Arrays.asList(allowedTypes));
++        allowedWithNull.add(IonType.NULL);
++
++        return (reader, builder) -> {
++            IonType ionType = reader.getType();
++            if (!allowedWithNull.contains(ionType)) {
++                throw new TrinoException(StandardErrorCode.GENERIC_USER_ERROR,
++                        "Cannot coerce IonType %s to Trino type %s".formatted(ionType, trinoType));
++            }
++            if (reader.isNullValue()) {
++                builder.appendNull();
++            }
++            else {
++                decoder.decode(reader, builder);
++            }
++        };
++    }
++
++    private record RowDecoder(Map<String, Integer> fieldPositions, List<BlockDecoder> fieldDecoders)
++            implements BlockDecoder
++    {
++        private static RowDecoder forFields(List<RowType.Field> fields)
++        {
++            ImmutableList.Builder<BlockDecoder> decoderBuilder = ImmutableList.builder();
++            ImmutableMap.Builder<String, Integer> fieldPositionBuilder = ImmutableMap.builder();
++            for (int pos = 0; pos < fields.size(); pos++) {
++                RowType.Field field = fields.get(pos);
++                decoderBuilder.add(decoderForType(field.getType()));
++                fieldPositionBuilder.put(field.getName().get().toLowerCase(Locale.ROOT), pos);
++            }
++            return new RowDecoder(fieldPositionBuilder.buildOrThrow(), decoderBuilder.build());
++        }
++
++        @Override
++        public void decode(IonReader ionReader, BlockBuilder blockBuilder)
++        {
++            ((RowBlockBuilder) blockBuilder)
++                    .buildEntry(fieldBuilders -> decode(ionReader, fieldBuilders::get));
++        }
++
++        // assumes that the reader is positioned on a non-null struct value
++        private void decode(IonReader ionReader, IntFunction<BlockBuilder> blockSelector)
++        {
++            boolean[] encountered = new boolean[fieldDecoders.size()];
++            ionReader.stepIn();
++
++            while (ionReader.next() != null) {
++                Integer fieldIndex = fieldPositions.get(ionReader.getFieldName().toLowerCase(Locale.ROOT));
++                if (fieldIndex == null) {
++                    continue;
++                }
++                BlockBuilder blockBuilder = blockSelector.apply(fieldIndex);
++                // for nested Row types, we keep the first of any duplicate fields.
++                // this is consistent with the Ion Hive SerDe.
++                if (!encountered[fieldIndex]) {
++                    fieldDecoders.get(fieldIndex).decode(ionReader, blockBuilder);
++                    encountered[fieldIndex] = true;
++                }
++            }
++
++            for (int i = 0; i < encountered.length; i++) {
++                if (!encountered[i]) {
++                    blockSelector.apply(i).appendNull();
++                }
++            }
++
++            ionReader.stepOut();
++        }
++    }
++
++    private static class MapDecoder
++            implements BlockDecoder
++    {
++        private final BiConsumer<String, BlockBuilder> keyConsumer;
++        private final BlockDecoder valueDecoder;
++        private final DistinctMapKeys distinctMapKeys;
++        private BlockBuilder keyBlockBuilder;
++        private BlockBuilder valueBlockBuilder;
++
++        MapDecoder(MapType mapType)
++        {
++            Type keyType = mapType.getKeyType();
++            Type valueType = mapType.getValueType();
++            this.valueDecoder = decoderForType(valueType);
++            // we configure the distinct key selector to use the last entry
++            // this is consistent with how the Ion Hive SerDe handled duplicate map fields.
++            this.distinctMapKeys = new DistinctMapKeys(mapType, true);
++            this.keyBlockBuilder = keyType.createBlockBuilder(null, 128);
++            this.valueBlockBuilder = valueType.createBlockBuilder(null, 128);
++
++            this.keyConsumer = switch (keyType) {
++                case VarcharType t -> {
++                    yield (String fieldName, BlockBuilder blockBuilder) ->
++                            t.writeSlice(blockBuilder, Varchars.truncateToLength(Slices.utf8Slice(fieldName), t));
++                }
++                case CharType t -> {
++                    yield (String fieldName, BlockBuilder blockBuilder) ->
++                            t.writeSlice(blockBuilder, Chars.truncateToLengthAndTrimSpaces(Slices.utf8Slice(fieldName), t));
++                }
++                default -> throw new UnsupportedOperationException("Unsupported map key type: " + keyType);
++            };
++        }
++
++        @Override
++        public void decode(IonReader ionReader, BlockBuilder builder)
++        {
++            ionReader.stepIn();
++            // buffer the keys and values
++            while (ionReader.next() != null) {
++                keyConsumer.accept(ionReader.getFieldName(), keyBlockBuilder);
++                valueDecoder.decode(ionReader, valueBlockBuilder);
++            }
++            ValueBlock keys = keyBlockBuilder.buildValueBlock();
++            ValueBlock values = valueBlockBuilder.buildValueBlock();
++            keyBlockBuilder = keyBlockBuilder.newBlockBuilderLike(null);
++            valueBlockBuilder = valueBlockBuilder.newBlockBuilderLike(null);
++
++            // copy the distinct key entries to the output.
++            boolean[] distinctKeys = distinctMapKeys.selectDistinctKeys(keys);
++
++            ((MapBlockBuilder) builder).buildEntry((keyBuilder, valueBuilder) -> {
++                for (int index = 0; index < distinctKeys.length; index++) {
++                    boolean distinctKey = distinctKeys[index];
++                    if (distinctKey) {
++                        keyBuilder.append(keys, index);
++                        valueBuilder.append(values, index);
++                    }
++                }
++            });
++            ionReader.stepOut();
++        }
++    }
++
++    private record ArrayDecoder(BlockDecoder elementDecoder)
++            implements BlockDecoder
++    {
++        @Override
++        public void decode(IonReader ionReader, BlockBuilder blockBuilder)
++        {
++            ((ArrayBlockBuilder) blockBuilder)
++                    .buildEntry(elementBuilder -> {
++                        ionReader.stepIn();
++                        while (ionReader.next() != null) {
++                            elementDecoder.decode(ionReader, elementBuilder);
++                        }
++                        ionReader.stepOut();
++                    });
++        }
++    }
++
++    private static BlockDecoder timestampDecoder(TimestampType type)
++    {
++        // Ion supports arbitrarily precise Timestamps.
++        // Other Hive formats are using the DecodedTimestamp and TrinoTimestampEncoders in
++        // io.trino.plugin.base.type but those don't cover picos.
++        // This code uses same pattern of splitting the parsed timestamp into (seconds, fraction)
++        // then rounding the fraction using Timestamps.round() ensures consistency with the others
++        // while capturing picos if present. Fractional precision beyond picos is ignored.
++        return (reader, builder) -> {
++            BigDecimal decimalSeconds = reader.timestampValue()
++                    .getDecimalMillis()
++                    .movePointLeft(3);
++            BigDecimal decimalPicos = decimalSeconds.remainder(BigDecimal.ONE)
++                    .movePointRight(12);
++
++            long fractionalPicos = Timestamps.round(decimalPicos.longValue(), 12 - type.getPrecision());
++            long epochMicros = decimalSeconds.longValue() * Timestamps.MICROSECONDS_PER_SECOND
++                    + fractionalPicos / Timestamps.PICOSECONDS_PER_MICROSECOND;
++
++            if (type.isShort()) {
++                type.writeLong(builder, epochMicros);
++            }
++            else {
++                type.writeObject(builder,
++                        new LongTimestamp(epochMicros, (int) (fractionalPicos % Timestamps.PICOSECONDS_PER_MICROSECOND)));
++            }
++        };
++    }
++
++    private static BlockDecoder decimalDecoder(DecimalType type)
++    {
++        int precision = type.getPrecision();
++        int scale = type.getScale();
++
++        return (reader, builder) -> {
++            try {
++                BigDecimal decimal = reader.bigDecimalValue();
++                BigInteger unscaled = decimal
++                        .setScale(scale, RoundingMode.UNNECESSARY)
++                        .unscaledValue();
++
++                if (Decimals.overflows(unscaled, precision)) {
++                    throw new TrinoException(StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE,
++                            "Decimal value %s does not fit %d digits of precision and %d of scale!"
++                                    .formatted(decimal, precision, scale));
++                }
++                if (type.isShort()) {
++                    type.writeLong(builder, unscaled.longValue());
++                }
++                else {
++                    type.writeObject(builder, Int128.valueOf(unscaled));
++                }
++            }
++            catch (ArithmeticException e) {
++                throw new TrinoException(StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE,
++                        "Decimal value %s does not fit %d digits of scale!".formatted(reader.bigDecimalValue(), scale));
++            }
++        };
++    }
++
++    private static String getCoercedValue(IonReader ionReader)
++    {
++        StringBuilder stringBuilder = new StringBuilder();
++        try (IonWriter writer = IonTextWriterBuilder.standard().build(stringBuilder)) {
++            writer.writeValue(ionReader);
++        }
++        catch (IOException e) {
++            throw new RuntimeException(e);
++        }
++        return stringBuilder.toString();
++    }
++
++    private static BlockDecoder varcharDecoder(VarcharType type)
++    {
++        return (ionReader, blockBuilder) -> {
++            IonType valueType = ionReader.getType();
++            String value;
++
++            if (valueType == IonType.SYMBOL || valueType == IonType.STRING) {
++                value = ionReader.stringValue();
++            }
++            else {
++                // For any types other than IonType.SYMBOL and IonType.STRING, performs text coercion
++                value = getCoercedValue(ionReader);
++            }
++            type.writeSlice(blockBuilder, Varchars.truncateToLength(Slices.utf8Slice(value), type));
++        };
++    }
++
++    private static BlockDecoder charDecoder(CharType type)
++    {
++        return (ionReader, blockBuilder) -> {
++            IonType valueType = ionReader.getType();
++            String value;
++
++            if (valueType == IonType.SYMBOL || valueType == IonType.STRING) {
++                value = ionReader.stringValue();
++            }
++            else {
++                // For any types other than IonType.SYMBOL and IonType.STRING, performs text coercion
++                value = getCoercedValue(ionReader);
++            }
++            type.writeSlice(blockBuilder, Chars.truncateToLengthAndTrimSpaces(Slices.utf8Slice(value), type));
++        };
++    }
++
++    private static final BlockDecoder BYTE_DECODER = (ionReader, blockBuilder) ->
++            TinyintType.TINYINT.writeLong(blockBuilder, readLong(ionReader));
++
++    private static final BlockDecoder SHORT_DECODER = (ionReader, blockBuilder) ->
++            SmallintType.SMALLINT.writeLong(blockBuilder, readLong(ionReader));
++
++    private static final BlockDecoder INT_DECODER = (ionReader, blockBuilder) ->
++            IntegerType.INTEGER.writeLong(blockBuilder, readLong(ionReader));
++
++    private static final BlockDecoder LONG_DECODER = (ionReader, blockBuilder) ->
++            BigintType.BIGINT.writeLong(blockBuilder, readLong(ionReader));
++
++    private static long readLong(IonReader ionReader)
++    {
++        try {
++            return ionReader.longValue();
++        }
++        catch (IonException e) {
++            throw new TrinoException(StandardErrorCode.GENERIC_USER_ERROR, e.getMessage());
++        }
++    }
++
++    private static final BlockDecoder REAL_DECODER = (ionReader, blockBuilder) -> {
++        double readValue = ionReader.doubleValue();
++        if (readValue == (float) readValue) {
++            RealType.REAL.writeFloat(blockBuilder, (float) readValue);
++        }
++        else {
++            throw new TrinoException(StandardErrorCode.GENERIC_USER_ERROR,
++                    "Won't truncate double precise float to real!");
++        }
++    };
++
++    private static final BlockDecoder FLOAT_DECODER = (ionReader, blockBuilder) ->
++            DoubleType.DOUBLE.writeDouble(blockBuilder, ionReader.doubleValue());
++
++    private static final BlockDecoder BOOL_DECODER = (ionReader, blockBuilder) ->
++            BooleanType.BOOLEAN.writeBoolean(blockBuilder, ionReader.booleanValue());
++
++    private static final BlockDecoder DATE_DECODER = (ionReader, blockBuilder) -> {
++        Timestamp ionTs = ionReader.timestampValue();
++        LocalDate localDate = LocalDate.of(ionTs.getZYear(), ionTs.getZMonth(), ionTs.getZDay());
++        DateType.DATE.writeLong(blockBuilder, localDate.toEpochDay());
++    };
++
++    private static final BlockDecoder BINARY_DECODER = (ionReader, blockBuilder) ->
++            VarbinaryType.VARBINARY.writeSlice(blockBuilder, Slices.wrappedBuffer(ionReader.newBytes()));
++}
+diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoderConfig.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoderConfig.java
+new file mode 100644
+index 0000000..c4c238b
+--- /dev/null
++++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoderConfig.java
+@@ -0,0 +1,50 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package io.trino.hive.formats.ion;
++
++import java.util.Map;
++
++/**
++ * Captures the SerDe properties that affect decoding.
++ *
++ * @param pathExtractors Map of column name => ion paths
++ *        for each entry in the map, the value bound to the column will be the result
++ *        of extracting the given search path.
++ * @param strictTyping whether the path extractions should enforce type expectations.
++ *        this only affects type checking of path extractions; any value decoded into
++ *        a trino column will be correctly typed or coerced for that column.
++ * @param caseSensitive whether field name matching should be case-sensitive or not.
++ */
++public record IonDecoderConfig(Map<String, String> pathExtractors, boolean strictTyping, boolean caseSensitive)
++{
++    static IonDecoderConfig defaultConfig()
++    {
++        return new IonDecoderConfig(Map.of(), false, false);
++    }
++
++    IonDecoderConfig withStrictTyping()
++    {
++        return new IonDecoderConfig(pathExtractors, true, caseSensitive);
++    }
++
++    IonDecoderConfig withCaseSensitive()
++    {
++        return new IonDecoderConfig(pathExtractors, strictTyping, true);
++    }
++
++    IonDecoderConfig withPathExtractors(Map<String, String> pathExtractors)
++    {
++        return new IonDecoderConfig(pathExtractors, strictTyping, caseSensitive);
++    }
++}
+diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java
+new file mode 100644
+index 0000000..43ecaa9
+--- /dev/null
++++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java
+@@ -0,0 +1,297 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package io.trino.hive.formats.ion;
++
++import com.amazon.ion.IonType;
++import com.amazon.ion.IonWriter;
++import com.amazon.ion.Timestamp;
++import com.google.common.collect.ImmutableList;
++import io.trino.hive.formats.line.Column;
++import io.trino.spi.Page;
++import io.trino.spi.block.ArrayBlock;
++import io.trino.spi.block.Block;
++import io.trino.spi.block.RowBlock;
++import io.trino.spi.block.SqlMap;
++import io.trino.spi.type.ArrayType;
++import io.trino.spi.type.BigintType;
++import io.trino.spi.type.BooleanType;
++import io.trino.spi.type.CharType;
++import io.trino.spi.type.DateType;
++import io.trino.spi.type.DecimalType;
++import io.trino.spi.type.DoubleType;
++import io.trino.spi.type.Int128;
++import io.trino.spi.type.IntegerType;
++import io.trino.spi.type.LongTimestamp;
++import io.trino.spi.type.MapType;
++import io.trino.spi.type.RealType;
++import io.trino.spi.type.RowType;
++import io.trino.spi.type.SmallintType;
++import io.trino.spi.type.TimestampType;
++import io.trino.spi.type.TinyintType;
++import io.trino.spi.type.Type;
++import io.trino.spi.type.VarbinaryType;
++import io.trino.spi.type.VarcharType;
++
++import java.io.IOException;
++import java.math.BigDecimal;
++import java.math.RoundingMode;
++import java.nio.charset.StandardCharsets;
++import java.time.LocalDate;
++import java.time.ZoneId;
++import java.util.Date;
++import java.util.List;
++import java.util.Optional;
++import java.util.function.IntFunction;
++
++import static com.google.common.base.Preconditions.checkArgument;
++
++/**
++ * An IonEncoder encodes Pages of trino data to an IonWriter.
++ */
++public class IonEncoder
++{
++    private final RowEncoder rowEncoder;
++
++    public IonEncoder(List<Column> columns)
++    {
++        rowEncoder = RowEncoder.forFields(columns.stream()
++                .map(c -> new RowType.Field(Optional.of(c.name()), c.type()))
++                .toList());
++    }
++
++    /**
++     * Encode the page of data to the IonWriter.
++     * <br>
++     * IonWriter.flush() will be called after the page is written.
++     */
++    public void encode(IonWriter writer, Page page)
++            throws IOException
++    {
++        for (int i = 0; i < page.getPositionCount(); i++) {
++            rowEncoder.encodeStruct(writer, page::getBlock, i);
++        }
++        // todo: consider decoupling ion writer flushes from page sizes.
++        writer.flush();
++    }
++
++    private interface BlockEncoder
++    {
++        void encode(IonWriter writer, Block block, int position)
++                throws IOException;
++    }
++
++    private static BlockEncoder encoderForType(Type type)
++    {
++        BlockEncoder encoder = switch (type) {
++            case TinyintType _ -> BYTE_ENCODER;
++            case SmallintType _ -> SHORT_ENCODER;
++            case IntegerType _ -> INT_ENCODER;
++            case BigintType _ -> LONG_ENCODER;
++            case BooleanType _ -> BOOL_ENCODER;
++            case VarbinaryType _ -> BINARY_ENCODER;
++            case RealType _ -> REAL_ENCODER;
++            case DoubleType _ -> DOUBLE_ENCODER;
++            case VarcharType _, CharType _ -> STRING_ENCODER;
++            case DateType _ -> DATE_ENCODER;
++            case DecimalType t -> decimalEncoder(t);
++            case TimestampType t -> timestampEncoder(t);
++            case RowType t -> RowEncoder.forFields(t.getFields());
++            case MapType t -> new MapEncoder(t, t.getKeyType(), encoderForType(t.getValueType()));
++            case ArrayType t -> new ArrayEncoder(encoderForType(t.getElementType()));
++            default -> throw new IllegalArgumentException(String.format("Unsupported type: %s", type));
++        };
++        return wrapEncoder(encoder);
++    }
++
++    private static BlockEncoder wrapEncoder(BlockEncoder encoder)
++    {
++        return (writer, block, position) ->
++        {
++            if (block.isNull(position)) {
++                writer.writeNull();
++            }
++            else {
++                encoder.encode(writer, block, position);
++            }
++        };
++    }
++
++    private record RowEncoder(List<String> fieldNames, List<BlockEncoder> fieldEncoders)
++            implements BlockEncoder
++    {
++        private static RowEncoder forFields(List<RowType.Field> fields)
++        {
++            ImmutableList.Builder<String> fieldNamesBuilder = ImmutableList.builder();
++            ImmutableList.Builder<BlockEncoder> fieldEncodersBuilder = ImmutableList.builder();
++
++            for (RowType.Field field : fields) {
++                fieldNamesBuilder.add(field.getName().get());
++                fieldEncodersBuilder.add(encoderForType(field.getType()));
++            }
++
++            return new RowEncoder(fieldNamesBuilder.build(), fieldEncodersBuilder.build());
++        }
++
++        @Override
++        public void encode(IonWriter writer, Block block, int position)
++                throws IOException
++        {
++            encodeStruct(writer, ((RowBlock) block)::getFieldBlock, position);
++        }
++
++        // used for encoding 'top-level' rows by the IonEncoder
++        private void encodeStruct(IonWriter writer, IntFunction<Block> blockSelector, int position)
++                throws IOException
++        {
++            writer.stepIn(IonType.STRUCT);
++            for (int i = 0; i < fieldEncoders.size(); i++) {
++                // fields are omitted by default, as was true in the hive serde.
++                // there is an unimplemented hive legacy property of `ion.serialize_null`
++                // that could be used to specify typed or untyped ion nulls instead.
++                Block block = blockSelector.apply(i);
++                if (block.isNull(position)) {
++                    continue;
++                }
++                writer.setFieldName(fieldNames.get(i));
++                fieldEncoders.get(i)
++                        .encode(writer, block, position);
++            }
++            writer.stepOut();
++        }
++    }
++
++    private record MapEncoder(MapType mapType, Type keyType, BlockEncoder encoder)
++            implements BlockEncoder
++    {
++        public MapEncoder(MapType mapType, Type keyType, BlockEncoder encoder)
++        {
++            this.mapType = mapType;
++            if (!(keyType instanceof VarcharType _ || keyType instanceof CharType _)) {
++                throw new UnsupportedOperationException("Unsupported map key type: " + keyType);
++            }
++            this.keyType = keyType;
++            this.encoder = encoder;
++        }
++
++        @Override
++        public void encode(IonWriter writer, Block block, int position)
++                throws IOException
++        {
++            SqlMap sqlMap = mapType.getObject(block, position);
++            int rawOffset = sqlMap.getRawOffset();
++            Block rawKeyBlock = sqlMap.getRawKeyBlock();
++            Block rawValueBlock = sqlMap.getRawValueBlock();
++
++            writer.stepIn(IonType.STRUCT);
++            for (int i = 0; i < sqlMap.getSize(); i++) {
++                checkArgument(!rawKeyBlock.isNull(rawOffset + i), "map key is null");
++                writer.setFieldName(VarcharType.VARCHAR.getSlice(rawKeyBlock, rawOffset + i).toString(StandardCharsets.UTF_8));
++                encoder.encode(writer, rawValueBlock, rawOffset + i);
++            }
++            writer.stepOut();
++        }
++    }
++
++    private record ArrayEncoder(BlockEncoder elementEncoder)
++            implements BlockEncoder
++    {
++        @Override
++        public void encode(IonWriter writer, Block block, int position)
++                throws IOException
++        {
++            writer.stepIn(IonType.LIST);
++            Block elementBlock = ((ArrayBlock) block).getArray(position);
++            for (int i = 0; i < elementBlock.getPositionCount(); i++) {
++                elementEncoder.encode(writer, elementBlock, i);
++            }
++            writer.stepOut();
++        }
++    }
++
++    private static BlockEncoder timestampEncoder(TimestampType type)
++    {
++        if (type.isShort()) {
++            return (writer, block, position) -> {
++                long epochMicros = type.getLong(block, position);
++                BigDecimal decimalMillis = BigDecimal.valueOf(epochMicros)
++                        .movePointLeft(3)
++                        .setScale(type.getPrecision() - 3, RoundingMode.UNNECESSARY);
++
++                writer.writeTimestamp(Timestamp.forMillis(decimalMillis, 0));
++            };
++        }
++        else {
++            return (writer, block, position) -> {
++                LongTimestamp longTimestamp = (LongTimestamp) type.getObject(block, position);
++                BigDecimal picosOfMicros = BigDecimal.valueOf(longTimestamp.getPicosOfMicro())
++                        .movePointLeft(9);
++                BigDecimal decimalMillis = BigDecimal.valueOf(longTimestamp.getEpochMicros())
++                        .movePointLeft(3)
++                        .add(picosOfMicros)
++                        .setScale(type.getPrecision() - 3, RoundingMode.UNNECESSARY);
++
++                writer.writeTimestamp(Timestamp.forMillis(decimalMillis, 0));
++            };
++        }
++    }
++
++    private static BlockEncoder decimalEncoder(DecimalType type)
++    {
++        if (type.isShort()) {
++            return (writer, block, position) -> {
++                writer.writeDecimal(BigDecimal.valueOf(type.getLong(block, position), type.getScale()));
++            };
++        }
++        else {
++            return (writer, block, position) -> {
++                writer.writeDecimal(new BigDecimal(((Int128) type.getObject(block, position)).toBigInteger(), type.getScale()));
++            };
++        }
++    }
++
++    private static final BlockEncoder BYTE_ENCODER = (writer, block, position) ->
++            writer.writeInt(TinyintType.TINYINT.getLong(block, position));
++
++    private static final BlockEncoder SHORT_ENCODER = (writer, block, position) ->
++            writer.writeInt(SmallintType.SMALLINT.getLong(block, position));
++
++    private static final BlockEncoder INT_ENCODER = (writer, block, position) ->
++            writer.writeInt(IntegerType.INTEGER.getInt(block, position));
++
++    private static final BlockEncoder STRING_ENCODER = (writer, block, position) ->
++            writer.writeString(VarcharType.VARCHAR.getSlice(block, position).toString(StandardCharsets.UTF_8));
++
++    private static final BlockEncoder BOOL_ENCODER = (writer, block, position) ->
++            writer.writeBool(BooleanType.BOOLEAN.getBoolean(block, position));
++
++    private static final BlockEncoder BINARY_ENCODER = (writer, block, position) ->
++            writer.writeBlob(VarbinaryType.VARBINARY.getSlice(block, position).getBytes());
++
++    private static final BlockEncoder LONG_ENCODER = (writer, block, position) ->
++            writer.writeInt(BigintType.BIGINT.getLong(block, position));
++
++    private static final BlockEncoder REAL_ENCODER = (writer, block, position) ->
++            writer.writeFloat(RealType.REAL.getFloat(block, position));
++
++    private static final BlockEncoder DOUBLE_ENCODER = (writer, block, position) ->
++            writer.writeFloat(DoubleType.DOUBLE.getDouble(block, position));
++
++    private static final BlockEncoder DATE_ENCODER = (writer, block, position) ->
++            writer.writeTimestamp(
++                    Timestamp.forDateZ(
++                            Date.from(
++                                    LocalDate.ofEpochDay(DateType.DATE.getLong(block, position))
++                                            .atStartOfDay(ZoneId.of("UTC"))
++                                            .toInstant())));
++}
+diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveFormatsModule.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveFormatsModule.java
+index 01c2344..0e6be88 100644
+--- a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveFormatsModule.java
++++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveFormatsModule.java
+@@ -21,6 +21,8 @@ import io.trino.plugin.hive.avro.AvroFileWriterFactory;
+ import io.trino.plugin.hive.avro.AvroPageSourceFactory;
+ import io.trino.plugin.hive.crypto.ParquetEncryptionModule;
+ import io.trino.plugin.hive.esri.EsriPageSourceFactory;
++import io.trino.plugin.hive.ion.IonFileWriterFactory;
++import io.trino.plugin.hive.ion.IonPageSourceFactory;
+ import io.trino.plugin.hive.line.CsvFileWriterFactory;
+ import io.trino.plugin.hive.line.CsvPageSourceFactory;
+ import io.trino.plugin.hive.line.JsonFileWriterFactory;
+@@ -62,6 +64,7 @@ public class HiveFormatsModule
+         pageSourceFactoryBinder.addBinding().to(RcFilePageSourceFactory.class).in(Scopes.SINGLETON);
+         pageSourceFactoryBinder.addBinding().to(AvroPageSourceFactory.class).in(Scopes.SINGLETON);
+         pageSourceFactoryBinder.addBinding().to(ProtobufSequenceFilePageSourceFactory.class).in(Scopes.SINGLETON);
++        pageSourceFactoryBinder.addBinding().to(IonPageSourceFactory.class).in(Scopes.SINGLETON);
+ 
+         binder.bind(OrcFileWriterFactory.class).in(Scopes.SINGLETON);
+         newExporter(binder).export(OrcFileWriterFactory.class).withGeneratedName();
+@@ -77,6 +80,7 @@ public class HiveFormatsModule
+         fileWriterFactoryBinder.addBinding().to(RcFileFileWriterFactory.class).in(Scopes.SINGLETON);
+         fileWriterFactoryBinder.addBinding().to(AvroFileWriterFactory.class).in(Scopes.SINGLETON);
+         fileWriterFactoryBinder.addBinding().to(ParquetFileWriterFactory.class).in(Scopes.SINGLETON);
++        fileWriterFactoryBinder.addBinding().to(IonFileWriterFactory.class).in(Scopes.SINGLETON);
+ 
+         install(new ParquetEncryptionModule());
+     }
+diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveStorageFormat.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveStorageFormat.java
+index 8140a9b..93c4dec 100644
+--- a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveStorageFormat.java
++++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveStorageFormat.java
+@@ -40,6 +40,9 @@ import static io.trino.hive.formats.HiveClassNames.ESRI_INPUT_FORMAT_CLASS;
+ import static io.trino.hive.formats.HiveClassNames.ESRI_SERDE_CLASS;
+ import static io.trino.hive.formats.HiveClassNames.HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS;
+ import static io.trino.hive.formats.HiveClassNames.HIVE_SEQUENCEFILE_OUTPUT_FORMAT_CLASS;
++import static io.trino.hive.formats.HiveClassNames.ION_INPUT_FORMAT;
++import static io.trino.hive.formats.HiveClassNames.ION_OUTPUT_FORMAT;
++import static io.trino.hive.formats.HiveClassNames.ION_SERDE_CLASS;
+ import static io.trino.hive.formats.HiveClassNames.JSON_SERDE_CLASS;
+ import static io.trino.hive.formats.HiveClassNames.LAZY_BINARY_COLUMNAR_SERDE_CLASS;
+ import static io.trino.hive.formats.HiveClassNames.LAZY_SIMPLE_SERDE_CLASS;
+@@ -110,7 +113,11 @@ public enum HiveStorageFormat
+     ESRI_GEO_JSON(
+             ESRI_GEO_JSON_SERDE_CLASS,
+             ESRI_GEO_JSON_INPUT_FORMAT_CLASS,
+-            HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS);
++            HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS),
++    ION(
++            ION_SERDE_CLASS,
++            ION_INPUT_FORMAT,
++            ION_OUTPUT_FORMAT);
+ 
+     private final String serde;
+     private final String inputFormat;
+@@ -144,7 +151,7 @@ public enum HiveStorageFormat
+         return switch (this) {
+             case ORC, PARQUET, AVRO, RCBINARY, RCTEXT, SEQUENCEFILE, SEQUENCEFILE_PROTOBUF -> true;
+             case JSON, OPENX_JSON, TEXTFILE, CSV, REGEX -> CompressionKind.forFile(path).isEmpty();
+-            case ESRI, ESRI_GEO_JSON -> false;
++            case ESRI, ESRI_GEO_JSON, ION -> false;
+         };
+     }
+ 
+diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveWriterFactory.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveWriterFactory.java
+index af5ad51..3c63793 100644
+--- a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveWriterFactory.java
++++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveWriterFactory.java
+@@ -65,6 +65,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
+ import static com.google.common.collect.ImmutableMap.toImmutableMap;
+ import static com.google.common.collect.MoreCollectors.onlyElement;
+ import static io.trino.hive.formats.HiveClassNames.HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS;
++import static io.trino.hive.formats.HiveClassNames.ION_OUTPUT_FORMAT;
+ import static io.trino.metastore.AcidOperation.CREATE_TABLE;
+ import static io.trino.metastore.Partitions.makePartName;
+ import static io.trino.plugin.hive.HiveCompressionCodecs.selectCompressionCodec;
+@@ -678,11 +679,13 @@ public class HiveWriterFactory
+ 
+     public static String getFileExtension(HiveCompressionCodec compression, StorageFormat format)
+     {
+-        // text format files must have the correct extension when compressed
+-        return compression.getHiveCompressionKind()
+-                .filter(_ -> format.getOutputFormat().equals(HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS))
+-                .map(CompressionKind::getFileExtension)
+-                .orElse("");
++        // text format files and ion format files must have the correct extension when compressed
++        return switch (format.getOutputFormat()) {
++            case ION_OUTPUT_FORMAT, HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS -> compression.getHiveCompressionKind()
++                    .map(CompressionKind::getFileExtension)
++                    .orElse("");
++            default -> "";
++        };
+     }
+ 
+     @VisibleForTesting
+diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriter.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriter.java
+new file mode 100644
+index 0000000..cb0749a
+--- /dev/null
++++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriter.java
+@@ -0,0 +1,135 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package io.trino.plugin.hive.ion;
++
++import com.amazon.ion.IonWriter;
++import com.google.common.io.CountingOutputStream;
++import io.trino.filesystem.TrinoOutputFile;
++import io.trino.hive.formats.compression.CompressionKind;
++import io.trino.hive.formats.ion.IonEncoder;
++import io.trino.hive.formats.line.Column;
++import io.trino.memory.context.AggregatedMemoryContext;
++import io.trino.plugin.hive.FileWriter;
++import io.trino.plugin.hive.RollbackAction;
++import io.trino.spi.Page;
++import io.trino.spi.TrinoException;
++
++import java.io.Closeable;
++import java.io.IOException;
++import java.io.OutputStream;
++import java.util.List;
++import java.util.Optional;
++import java.util.function.LongSupplier;
++
++import static io.trino.plugin.hive.HiveErrorCode.HIVE_WRITER_CLOSE_ERROR;
++import static io.trino.plugin.hive.HiveErrorCode.HIVE_WRITER_DATA_ERROR;
++import static java.util.Objects.requireNonNull;
++
++public class IonFileWriter
++        implements FileWriter
++{
++    private final AggregatedMemoryContext outputStreamMemoryContext;
++    private final RollbackAction rollbackAction;
++    private final IonEncoder pageEncoder;
++    private final IonWriter writer;
++    private final OutputStream outputStream;
++    private final LongSupplier bytesWritten;
++
++    public IonFileWriter(
++            TrinoOutputFile outputFile,
++            RollbackAction rollbackAction,
++            Optional<CompressionKind> compressionKind,
++            IonSerDeProperties.IonEncoding ionEncoding,
++            List<Column> columns)
++            throws IOException
++    {
++        requireNonNull(outputFile);
++        requireNonNull(rollbackAction);
++        requireNonNull(ionEncoding);
++        requireNonNull(columns);
++
++        this.outputStreamMemoryContext = AggregatedMemoryContext.newSimpleAggregatedMemoryContext();
++        CountingOutputStream countingOutputStream = new CountingOutputStream(outputFile.create(outputStreamMemoryContext));
++        if (compressionKind.isPresent()) {
++            this.outputStream = compressionKind.get().createCodec()
++                    .createStreamCompressor(countingOutputStream);
++        }
++        else {
++            this.outputStream = countingOutputStream;
++        }
++
++        this.bytesWritten = countingOutputStream::getCount;
++        this.rollbackAction = rollbackAction;
++        this.writer = ionEncoding.createWriter(this.outputStream);
++        this.pageEncoder = new IonEncoder(columns);
++    }
++
++    @Override
++    public long getWrittenBytes()
++    {
++        return bytesWritten.getAsLong();
++    }
++
++    @Override
++    public long getMemoryUsage()
++    {
++        return outputStreamMemoryContext.getBytes();
++    }
++
++    @Override
++    public RollbackAction commit()
++    {
++        try {
++            writer.close();
++        }
++        catch (Exception e) {
++            try {
++                rollbackAction.run();
++            }
++            catch (Exception _) {
++                // ignore
++            }
++            throw new TrinoException(HIVE_WRITER_CLOSE_ERROR, "Error committing write to Ion file", e);
++        }
++        return rollbackAction;
++    }
++
++    @Override
++    public void rollback()
++    {
++        try (Closeable _ = rollbackAction::run) {
++            writer.close();
++        }
++        catch (IOException e) {
++            throw new TrinoException(HIVE_WRITER_CLOSE_ERROR, "Error rolling back write to Ion file", e);
++        }
++    }
++
++    @Override
++    public long getValidationCpuNanos()
++    {
++        return 0;
++    }
++
++    @Override
++    public void appendRows(Page page)
++    {
++        try {
++            pageEncoder.encode(writer, page);
++        }
++        catch (IOException e) {
++            throw new TrinoException(HIVE_WRITER_DATA_ERROR, e);
++        }
++    }
++}
+diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriterFactory.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriterFactory.java
+new file mode 100644
+index 0000000..0283b99
+--- /dev/null
++++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriterFactory.java
+@@ -0,0 +1,108 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package io.trino.plugin.hive.ion;
++
++import com.google.inject.Inject;
++import io.trino.filesystem.Location;
++import io.trino.filesystem.TrinoFileSystem;
++import io.trino.filesystem.TrinoFileSystemFactory;
++import io.trino.filesystem.TrinoOutputFile;
++import io.trino.hive.formats.line.Column;
++import io.trino.metastore.StorageFormat;
++import io.trino.plugin.hive.FileWriter;
++import io.trino.plugin.hive.HiveCompressionCodec;
++import io.trino.plugin.hive.HiveFileWriterFactory;
++import io.trino.plugin.hive.RollbackAction;
++import io.trino.plugin.hive.WriterKind;
++import io.trino.plugin.hive.acid.AcidTransaction;
++import io.trino.spi.TrinoException;
++import io.trino.spi.connector.ConnectorSession;
++import io.trino.spi.type.Type;
++import io.trino.spi.type.TypeManager;
++
++import java.util.List;
++import java.util.Map;
++import java.util.Optional;
++import java.util.OptionalInt;
++import java.util.stream.IntStream;
++
++import static io.trino.hive.formats.HiveClassNames.ION_OUTPUT_FORMAT;
++import static io.trino.plugin.hive.HiveErrorCode.HIVE_WRITER_OPEN_ERROR;
++import static io.trino.plugin.hive.HiveSessionProperties.getTimestampPrecision;
++import static io.trino.plugin.hive.util.HiveTypeUtil.getType;
++import static io.trino.plugin.hive.util.HiveUtil.getColumnNames;
++import static io.trino.plugin.hive.util.HiveUtil.getColumnTypes;
++import static java.util.Objects.requireNonNull;
++
++public class IonFileWriterFactory
++        implements HiveFileWriterFactory
++{
++    private final TrinoFileSystemFactory fileSystemFactory;
++    private final TypeManager typeManager;
++
++    @Inject
++    public IonFileWriterFactory(
++            TrinoFileSystemFactory fileSystemFactory,
++            TypeManager typeManager)
++    {
++        this.fileSystemFactory = requireNonNull(fileSystemFactory);
++        this.typeManager = requireNonNull(typeManager);
++    }
++
++    @Override
++    public Optional<FileWriter> createFileWriter(
++            Location location,
++            List<String> inputColumnNames,
++            StorageFormat storageFormat,
++            HiveCompressionCodec compressionCodec,
++            Map<String, String> schema,
++            ConnectorSession session,
++            OptionalInt bucketNumber,
++            AcidTransaction transaction,
++            boolean useAcidSchema,
++            WriterKind writerKind)
++    {
++        if (!ION_OUTPUT_FORMAT.equals(storageFormat.getOutputFormat())) {
++            return Optional.empty();
++        }
++
++        IonSerDeProperties.validatePropertySupport(schema);
++
++        try {
++            TrinoFileSystem fileSystem = fileSystemFactory.create(session);
++            TrinoOutputFile outputFile = fileSystem.newOutputFile(location);
++
++            RollbackAction rollbackAction = () -> fileSystem.deleteFile(location);
++
++            List<String> fileColumnNames = getColumnNames(schema);
++            List<Type> fileColumnTypes = getColumnTypes(schema).stream()
++                    .map(hiveType -> getType(hiveType, typeManager, getTimestampPrecision(session)))
++                    .toList();
++
++            List<Column> columns = IntStream.range(0, fileColumnNames.size())
++                    .mapToObj(ordinal -> new Column(fileColumnNames.get(ordinal), fileColumnTypes.get(ordinal), ordinal))
++                    .toList();
++
++            return Optional.of(new IonFileWriter(
++                    outputFile,
++                    rollbackAction,
++                    compressionCodec.getHiveCompressionKind(),
++                    IonSerDeProperties.getIonEncoding(schema),
++                    columns));
++        }
++        catch (Exception e) {
++            throw new TrinoException(HIVE_WRITER_OPEN_ERROR, "Error creating Ion Output", e);
++        }
++    }
++}
+diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSource.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSource.java
+new file mode 100644
+index 0000000..1f608d6
+--- /dev/null
++++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSource.java
+@@ -0,0 +1,123 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package io.trino.plugin.hive.ion;
++
++import com.amazon.ion.IonBufferConfiguration;
++import com.amazon.ion.IonReader;
++import com.amazon.ion.IonType;
++import io.trino.hive.formats.ion.IonDecoder;
++import io.trino.spi.Page;
++import io.trino.spi.PageBuilder;
++import io.trino.spi.connector.ConnectorPageSource;
++import io.trino.spi.connector.SourcePage;
++
++import java.io.IOException;
++import java.util.OptionalLong;
++import java.util.function.LongSupplier;
++
++import static io.airlift.slice.SizeOf.instanceSize;
++import static java.util.Objects.requireNonNull;
++
++public class IonPageSource
++        implements ConnectorPageSource
++{
++    private static final int INSTANCE_SIZE = instanceSize(IonPageSource.class);
++
++    private final IonReader ionReader;
++    private final LongSupplier completedBytes;
++    private final PageBuilder pageBuilder;
++    private final IonDecoder decoder;
++    private long readTimeNanos;
++    private int completedPositions;
++    private boolean finished;
++
++    public IonPageSource(IonReader ionReader, LongSupplier completedBytes, IonDecoder decoder)
++    {
++        this.ionReader = requireNonNull(ionReader);
++        this.completedBytes = requireNonNull(completedBytes);
++        this.decoder = requireNonNull(decoder);
++        this.pageBuilder = new PageBuilder(decoder.getColumnTypes());
++    }
++
++    @Override
++    public long getCompletedBytes()
++    {
++        return completedBytes.getAsLong();
++    }
++
++    @Override
++    public OptionalLong getCompletedPositions()
++    {
++        return OptionalLong.of(completedPositions);
++    }
++
++    @Override
++    public long getReadTimeNanos()
++    {
++        return readTimeNanos;
++    }
++
++    @Override
++    public boolean isFinished()
++    {
++        return finished;
++    }
++
++    @Override
++    public SourcePage getNextSourcePage()
++    {
++        while (!pageBuilder.isFull()) {
++            if (!readNextValue()) {
++                finished = true;
++                break;
++            }
++        }
++
++        Page page = pageBuilder.build();
++        completedPositions += page.getPositionCount();
++        pageBuilder.reset();
++        return SourcePage.create(page);
++    }
++
++    @Override
++    public long getMemoryUsage()
++    {
++        // we don't have the ability to ask an IonReader how many bytes it has buffered
++        // it will buffer as much as is needed for each top-level-value.
++        int assumedIonBufferSize = IonBufferConfiguration.DEFAULT.getInitialBufferSize() * 4;
++        return INSTANCE_SIZE + assumedIonBufferSize + pageBuilder.getRetainedSizeInBytes();
++    }
++
++    @Override
++    public void close()
++            throws IOException
++    {
++        ionReader.close();
++    }
++
++    private boolean readNextValue()
++    {
++        long start = System.nanoTime();
++        IonType type = ionReader.next();
++
++        if (type == null) {
++            readTimeNanos += System.nanoTime() - start;
++            return false;
++        }
++        decoder.decode(ionReader, pageBuilder);
++
++        readTimeNanos += System.nanoTime() - start;
++        return true;
++    }
++}
+diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSourceFactory.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSourceFactory.java
+new file mode 100644
+index 0000000..b416fa1
+--- /dev/null
++++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSourceFactory.java
+@@ -0,0 +1,128 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package io.trino.plugin.hive.ion;
++
++import com.amazon.ion.IonReader;
++import com.amazon.ion.system.IonReaderBuilder;
++import com.google.common.io.CountingInputStream;
++import com.google.inject.Inject;
++import io.trino.filesystem.Location;
++import io.trino.filesystem.TrinoFileSystem;
++import io.trino.filesystem.TrinoFileSystemFactory;
++import io.trino.filesystem.TrinoInputFile;
++import io.trino.hive.formats.compression.Codec;
++import io.trino.hive.formats.compression.CompressionKind;
++import io.trino.hive.formats.ion.IonDecoder;
++import io.trino.hive.formats.ion.IonDecoderConfig;
++import io.trino.hive.formats.line.Column;
++import io.trino.plugin.hive.AcidInfo;
++import io.trino.plugin.hive.HiveColumnHandle;
++import io.trino.plugin.hive.HivePageSourceFactory;
++import io.trino.plugin.hive.Schema;
++import io.trino.plugin.hive.acid.AcidTransaction;
++import io.trino.spi.TrinoException;
++import io.trino.spi.connector.ConnectorPageSource;
++import io.trino.spi.connector.ConnectorSession;
++import io.trino.spi.connector.EmptyPageSource;
++import io.trino.spi.predicate.TupleDomain;
++
++import java.io.IOException;
++import java.io.InputStream;
++import java.util.List;
++import java.util.Optional;
++import java.util.OptionalInt;
++
++import static com.google.common.base.Preconditions.checkArgument;
++import static io.trino.hive.formats.HiveClassNames.ION_SERDE_CLASS;
++import static io.trino.plugin.hive.HiveErrorCode.HIVE_CANNOT_OPEN_SPLIT;
++import static io.trino.plugin.hive.HivePageSourceProvider.projectColumnDereferences;
++import static io.trino.plugin.hive.util.HiveUtil.splitError;
++import static java.util.Objects.requireNonNull;
++
++public class IonPageSourceFactory
++        implements HivePageSourceFactory
++{
++    private final TrinoFileSystemFactory trinoFileSystemFactory;
++
++    @Inject
++    public IonPageSourceFactory(TrinoFileSystemFactory trinoFileSystemFactory)
++    {
++        this.trinoFileSystemFactory = requireNonNull(trinoFileSystemFactory);
++    }
++
++    @Override
++    public Optional<ConnectorPageSource> createPageSource(
++            ConnectorSession session,
++            Location path,
++            long start,
++            long length,
++            long estimatedFileSize,
++            long lastModifiedTime,
++            Schema schema,
++            List<HiveColumnHandle> columns,
++            TupleDomain<HiveColumnHandle> effectivePredicate,
++            Optional<AcidInfo> acidInfo,
++            OptionalInt bucketNumber,
++            boolean originalFile,
++            AcidTransaction transaction)
++    {
++        if (!ION_SERDE_CLASS.equals(schema.serializationLibraryName())) {
++            return Optional.empty();
++        }
++        IonSerDeProperties.validatePropertySupport(schema.serdeProperties());
++        checkArgument(acidInfo.isEmpty(), "Acid is not supported for Ion files");
++
++        // Skip empty inputs
++        if (length == 0) {
++            return Optional.of(new EmptyPageSource());
++        }
++
++        if (start != 0) {
++            throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, "Split start must be 0 for Ion files");
++        }
++
++        TrinoFileSystem trinoFileSystem = trinoFileSystemFactory.create(session);
++        TrinoInputFile inputFile = trinoFileSystem.newInputFile(path, estimatedFileSize);
++
++        // todo: optimization for small files that should just be read into memory
++        try {
++            Optional<Codec> codec = CompressionKind.forFile(inputFile.location().fileName())
++                    .map(CompressionKind::createCodec);
++
++            CountingInputStream countingInputStream = new CountingInputStream(inputFile.newStream());
++            InputStream inputStream;
++            if (codec.isPresent()) {
++                inputStream = codec.get().createStreamDecompressor(countingInputStream);
++            }
++            else {
++                inputStream = countingInputStream;
++            }
++
++            IonDecoderConfig decoderConfig = IonSerDeProperties.decoderConfigFor(schema.serdeProperties());
++
++            return Optional.of(projectColumnDereferences(columns, baseColumns -> {
++                List<Column> decoderColumns = baseColumns.stream()
++                        .map(hc -> new Column(hc.getName(), hc.getType(), hc.getBaseHiveColumnIndex()))
++                        .toList();
++
++                IonDecoder decoder = new IonDecoder(decoderColumns, decoderConfig);
++                IonReader ionReader = IonReaderBuilder.standard().build(inputStream);
++                return new IonPageSource(ionReader, countingInputStream::getCount, decoder);
++            }));
++        }
++        catch (IOException e) {
++            throw new TrinoException(HIVE_CANNOT_OPEN_SPLIT, splitError(e, path, start, length), e);
++        }
++    }
++}
+diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonSerDeProperties.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonSerDeProperties.java
+new file mode 100644
+index 0000000..ed64066
+--- /dev/null
++++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonSerDeProperties.java
+@@ -0,0 +1,154 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package io.trino.plugin.hive.ion;
++
++import com.amazon.ion.IonWriter;
++import com.amazon.ion.system.IonBinaryWriterBuilder;
++import com.amazon.ion.system.IonTextWriterBuilder;
++import com.google.common.collect.ImmutableMap;
++import io.airlift.log.Logger;
++import io.trino.hive.formats.ion.IonDecoderConfig;
++import io.trino.spi.TrinoException;
++
++import java.io.OutputStream;
++import java.util.LinkedList;
++import java.util.List;
++import java.util.Locale;
++import java.util.Map;
++import java.util.regex.Matcher;
++import java.util.regex.Pattern;
++
++import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
++
++public final class IonSerDeProperties
++{
++    private static final Logger log = Logger.get(IonSerDeProperties.class);
++
++    // Reader properties
++    public static final String STRICT_PATH_TYPING_PROPERTY = "ion.path_extractor.strict";
++    public static final String STRICT_PATH_TYPING_DEFAULT = "false";
++    public static final String PATH_EXTRACTOR_PROPERTY = "ion.(\\w+).path_extractor";
++    public static final String PATH_EXTRACTION_CASE_SENSITIVITY = "ion.path_extractor.case_sensitive";
++    public static final String PATH_EXTRACTION_CASE_SENSITIVITY_DEFAULT = "false";
++    private static final Pattern pathExtractorPattern = Pattern.compile(PATH_EXTRACTOR_PROPERTY);
++
++    // unimplemented reader properties
++    public static final String FAIL_ON_OVERFLOW_PROPERTY = "ion.fail_on_overflow";
++    public static final String FAIL_ON_OVERFLOW_PROPERTY_DEFAULT = "true";
++    public static final String FAIL_ON_OVERFLOW_COLUMN_PROPERTY = "ion.\\w+.fail_on_overflow";
++    public static final String IGNORE_MALFORMED = "ion.ignore_malformed";
++    public static final String IGNORE_MALFORMED_DEFAULT = "false";
++
++    // Writer properties
++    public static final String ION_ENCODING_PROPERTY = "ion.encoding";
++    public static final String TEXT_ENCODING = "text";
++    public static final String BINARY_ENCODING = "binary";
++
++    // unimplemented writer properties
++    public static final String ION_TIMESTAMP_OFFSET_PROPERTY = "ion.timestamp.serialization_offset";
++    public static final String ION_TIMESTAMP_OFFSET_DEFAULT = "Z";
++    public static final String ION_SERIALIZE_NULL_AS_PROPERTY = "ion.serialize_null";
++    public static final String ION_SERIALIZE_NULL_AS_DEFAULT = "OMIT";
++    public static final String ION_SERIALIZE_NULL_AS_COLUMN_PROPERTY = "ion.\\w+.serialize_as";
++
++    private static final Pattern unsupportedPropertiesRegex = Pattern.compile(
++            ION_SERIALIZE_NULL_AS_COLUMN_PROPERTY + "|" + FAIL_ON_OVERFLOW_COLUMN_PROPERTY);
++
++    private static final Map<String, String> defaultOnlyProperties = Map.of(
++            // reader properties
++            FAIL_ON_OVERFLOW_PROPERTY, FAIL_ON_OVERFLOW_PROPERTY_DEFAULT,
++            IGNORE_MALFORMED, IGNORE_MALFORMED_DEFAULT,
++
++            // writer properties
++            ION_TIMESTAMP_OFFSET_PROPERTY, ION_TIMESTAMP_OFFSET_DEFAULT,
++            ION_SERIALIZE_NULL_AS_PROPERTY, ION_SERIALIZE_NULL_AS_DEFAULT);
++
++    private IonSerDeProperties() {}
++
++    public static IonDecoderConfig decoderConfigFor(Map<String, String> propertiesMap)
++    {
++        ImmutableMap.Builder<String, String> extractionsBuilder = ImmutableMap.builder();
++
++        for (Map.Entry<String, String> property : propertiesMap.entrySet()) {
++            Matcher matcher = pathExtractorPattern.matcher(property.getKey());
++            if (matcher.matches()) {
++                extractionsBuilder.put(matcher.group(1), property.getValue());
++            }
++        }
++
++        boolean strictTyping = Boolean.parseBoolean(
++                propertiesMap.getOrDefault(STRICT_PATH_TYPING_PROPERTY, STRICT_PATH_TYPING_DEFAULT));
++        boolean caseSensitive = Boolean.parseBoolean(
++                propertiesMap.getOrDefault(PATH_EXTRACTION_CASE_SENSITIVITY, PATH_EXTRACTION_CASE_SENSITIVITY_DEFAULT));
++
++        return new IonDecoderConfig(extractionsBuilder.buildOrThrow(), strictTyping, caseSensitive);
++    }
++
++    public enum IonEncoding
++    {
++        BINARY {
++            @Override
++            public IonWriter createWriter(OutputStream outputStream)
++            {
++                return IonBinaryWriterBuilder.standard().build(outputStream);
++            }
++        },
++
++        TEXT {
++            @Override
++            public IonWriter createWriter(OutputStream outputStream)
++            {
++                return IonTextWriterBuilder.minimal().build(outputStream);
++            }
++        };
++
++        public abstract IonWriter createWriter(OutputStream outputStream);
++    }
++
++    public static IonEncoding getIonEncoding(Map<String, String> schema)
++    {
++        String encodingStr = schema.getOrDefault(ION_ENCODING_PROPERTY, BINARY_ENCODING);
++        return switch (encodingStr.toLowerCase(Locale.ROOT)) {
++            case TEXT_ENCODING -> IonEncoding.TEXT;
++            case BINARY_ENCODING -> IonEncoding.BINARY;
++            default -> throw new TrinoException(HIVE_UNSUPPORTED_FORMAT,
++                    "Unsupported Ion encoding format: " + encodingStr);
++        };
++    }
++
++    /**
++     * Checks if all of the properties starting with "ion." are supported.
++     * Throws TrinoException if any are unsupported.
++     */
++    public static void validatePropertySupport(Map<String, String> properties)
++    {
++        List<String> errors = new LinkedList<>();
++        for (Map.Entry<String, String> entry : properties.entrySet()) {
++            String key = entry.getKey();
++            String value = entry.getValue();
++            if (!key.startsWith("ion.")) {
++                continue;
++            }
++            String defaultValue = defaultOnlyProperties.get(key);
++            if ((defaultValue != null && !defaultValue.equals(value))
++                    || unsupportedPropertiesRegex.matcher(key).matches()) {
++                log.error("Ion Table contains unsupported SerDe property: %s => %s", key, value);
++                errors.add(String.format("%s = %s", key, value));
++            }
++        }
++        if (!errors.isEmpty()) {
++            throw new TrinoException(HIVE_UNSUPPORTED_FORMAT, "Ion Table contains unsupported SerDe properties: " + String.join(", ", errors));
++        }
++    }
++}
