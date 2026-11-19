@@ -17,7 +17,7 @@ The jars also need these two jars in `plugin/hive/`, from Maven Central:
 
 In the tarball, the two jars in `plugin/hive/` are hard links to the ones in `plugin/delta-lake/`, `plugin/hudi/`, `plugin/iceberg/` and `plugin/lakehouse/`. Delete the old file before you copy the new one, or write a new file and rename it over the old one. Copying over the old file changes the other plugins too.
 
-With the jars installed, the Hive connector reads tables with the Ion SerDe, in text or binary Ion, compressed or not. It writes Ion tables, such as those created with `format = 'ION'`, as binary Ion, or as text Ion if the table's SerDe property `ion.encoding` is `TEXT`. Reads and writes fail with `HIVE_UNSUPPORTED_FORMAT` if the table sets `ion.fail_on_overflow`, `ion.ignore_malformed`, `ion.timestamp.serialization_offset` or `ion.serialize_null` to a non-default value, or sets any `ion.<column>.fail_on_overflow` or `ion.<column>.serialize_as`.
+With the jars installed, the Hive connector reads tables with the Ion SerDe, in text or binary Ion, compressed or not. It reads them as Amazon Athena reads them through the Ion Hive SerDe; see [Reading as Athena does](#reading-as-athena-does). It writes Ion tables, such as those created with `format = 'ION'`, as binary Ion, or as text Ion if the table's SerDe property `ion.encoding` is `TEXT`. Writes fail with `HIVE_UNSUPPORTED_FORMAT` if the table sets `ion.timestamp.serialization_offset` or `ion.serialize_null` to a non-default value, or sets any `ion.<column>.serialize_as`. Reads ignore these writer properties, as the SerDe does.
 
 ## What the patch changes
 
@@ -40,6 +40,19 @@ The PR targets Trino 475-SNAPSHOT. Three things differ in 484:
 3. `FileWriter.commit()` returns a `RollbackAction`. `IonFileWriter` and `IonFileWriterFactory` follow 484's Avro and line writers.
 
 `IonEncoder` uses Trino's type accessors to read arrays and structs from dictionary blocks. Hive produces those blocks when it routes rows from a single page to multiple partitions.
+
+## Reading as Athena does
+
+Athena reads Ion tables with the Ion Hive SerDe (`com.amazon.ion:ion-hive3-serde`). The patch changes the upstream PR's reader to give the same values and errors, as recorded on Athena:
+
+- **Nulls:** any Ion null, typed or not, reads as NULL, whatever the column's type.
+- **Ion types:** a column reads only the Ion types the SerDe accepts. `double` and `real` read only floats, `decimal` reads integers and decimals, `varchar(n)` and `char(n)` read only strings and symbols, and `string` reads any value, as its ASCII Ion text if it is not a string or a symbol. A value of another type fails with `GENERIC_INTERNAL_ERROR` and the `ClassCastException` message the SerDe's cast gives. For `decimal`, it fails with `HIVE_BAD_DATA` and `Invalid Ion type`.
+- **Values that don't fit:** an integer out of the column's range, a `real` that loses precision, text longer than `varchar(n)` or `char(n)`, and a decimal with more fraction digits than the column's scale fail with `HIVE_BAD_DATA` and the SerDe's message. With `ion.fail_on_overflow` or `ion.<column>.fail_on_overflow` set to anything but `true`, integers keep their low bits as a Java cast does, `real` values are rounded and text is truncated. A decimal with more digits than the column's precision fails with `NUMERIC_VALUE_OUT_OF_RANGE`. Athena returns that decimal, but Trino can't send it to its clients.
+- **Timestamps:** a timestamp reads as its UTC instant, truncated to milliseconds. A `date` reads as the UTC date of that instant.
+- **Malformed Ion:** it fails with `HIVE_CURSOR_ERROR` and ion-java's message. With `ion.ignore_malformed=true`, the rest of the file is skipped from the first malformed value on.
+- **Path extractors:** every table column registers its search path, in the iteration order of a `HashMap` keyed by column name, and the extractor matches as the SerDe's does. Columns on the same path all read a scalar. Only the first one reads a container, and the others read NULL. A column whose path lies under another column's path reads NULL. The struct fields of a column match case-insensitively, unless `ion.path_extractor.case_sensitive` is `true`. An exact match wins over a case-insensitive one. The upstream PR's `ion.path_extractor.strict` property is gone.
+
+The SerDe's errors are reported as Athena reports them: `HIVE_BAD_DATA` messages start with `Error Parsing a column in the table: `, and `GENERIC_INTERNAL_ERROR` is an external error, not an internal one.
 
 ## Building
 

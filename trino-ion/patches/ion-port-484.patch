@@ -14,10 +14,10 @@ index deb186d..60931f3 100644
      public static final String OPENX_JSON_SERDE_CLASS = "org.openx.data.jsonserde.JsonSerDe";
 diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoder.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoder.java
 new file mode 100644
-index 0000000..4c8ce65
+index 0000000..d25720d
 --- /dev/null
 +++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoder.java
-@@ -0,0 +1,497 @@
+@@ -0,0 +1,640 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ index 0000000..4c8ce65
 + */
 +package io.trino.hive.formats.ion;
 +
-+import com.amazon.ion.IonException;
++import com.amazon.ion.IntegerSize;
 +import com.amazon.ion.IonReader;
 +import com.amazon.ion.IonType;
 +import com.amazon.ion.IonWriter;
@@ -43,10 +43,12 @@ index 0000000..4c8ce65
 +import com.amazon.ionpathextraction.PathExtractorBuilder;
 +import com.amazon.ionpathextraction.pathcomponents.Text;
 +import com.google.common.collect.ImmutableList;
-+import com.google.common.collect.ImmutableMap;
 +import io.airlift.slice.Slices;
 +import io.trino.hive.formats.DistinctMapKeys;
 +import io.trino.hive.formats.line.Column;
++import io.trino.spi.ErrorCode;
++import io.trino.spi.ErrorCodeSupplier;
++import io.trino.spi.ErrorType;
 +import io.trino.spi.PageBuilder;
 +import io.trino.spi.StandardErrorCode;
 +import io.trino.spi.TrinoException;
@@ -82,10 +84,10 @@ index 0000000..4c8ce65
 +import java.io.IOException;
 +import java.math.BigDecimal;
 +import java.math.BigInteger;
-+import java.math.RoundingMode;
 +import java.time.LocalDate;
-+import java.util.Arrays;
-+import java.util.HashSet;
++import java.util.EnumSet;
++import java.util.HashMap;
++import java.util.LinkedHashMap;
 +import java.util.List;
 +import java.util.Locale;
 +import java.util.Map;
@@ -93,42 +95,71 @@ index 0000000..4c8ce65
 +import java.util.function.BiConsumer;
 +import java.util.function.BiFunction;
 +import java.util.function.IntFunction;
++import java.util.function.IntUnaryOperator;
 +
++/**
++ * Decodes Ion values into Trino columns as Athena reads them through the Ion Hive SerDe
++ * (com.amazon.ionhiveserde.IonHiveSerDe): the same accepted Ion types, overflow checks,
++ * truncations, NULLs and errors.
++ */
 +public class IonDecoder
 +{
++    private static final IonTextWriterBuilder TEXT_WRITER = IonTextWriterBuilder.standard().withCharsetAscii().immutable();
++    private static final String BAD_DATA_PREFIX = "Error Parsing a column in the table: ";
++    private static final String SERDE_LITE_PACKAGE = "com.amazon.ion.impl.lite.";
++    private static final String SERDE_DECORATOR_PACKAGE = "com.amazon.ionhiveserde.caseinsensitivedecorator.";
++
 +    private final PathExtractor<PageBuilder> extractor;
 +    private final List<Type> columnTypes;
 +    private final boolean[] encountered;
 +
 +    /**
 +     * Builds a decoder for the given columns and the configuration.
++     *
++     * @param columns the columns to decode
++     * @param tableColumnNames all columns of the table, decoded or not. Their search paths decide
++     * which values the decoded columns see, as they do for the SerDe.
 +     */
 +    public IonDecoder(
 +            List<Column> columns,
++            List<String> tableColumnNames,
 +            IonDecoderConfig decoderConfig)
 +    {
 +        ImmutableList.Builder<Type> columnTypesBuilder = ImmutableList.builder();
-+        PathExtractorBuilder<PageBuilder> extractorBuilder = PathExtractorBuilder.<PageBuilder>standard()
-+                .withMatchCaseInsensitive(!decoderConfig.caseSensitive());
-+
++        Map<String, BiFunction<IonReader, PageBuilder, Integer>> callbacks = new LinkedHashMap<>();
 +        for (int pos = 0; pos < columns.size(); pos++) {
 +            Column column = columns.get(pos);
-+            String name = column.name();
-+            Type type = column.type();
++            BlockDecoder decoder = decoderForType(
++                    column.type(),
++                    new Options(decoderConfig.failOnOverflow(column.name()), decoderConfig.caseSensitive()));
++            callbacks.putIfAbsent(column.name(), callbackFor(decoder, pos));
++            columnTypesBuilder.add(column.type());
++        }
 +
-+            BlockDecoder decoder = decoderForType(type);
-+            BiFunction<IonReader, PageBuilder, Integer> callback = callbackFor(decoder, pos);
-+            String extractionPath = decoderConfig.pathExtractors().get(name);
++        // The SerDe registers a search path for every column of the table, in the iteration order of a
++        // HashMap keyed by column name. Several columns can match the same value: they all read a
++        // scalar, but a container is consumed by the first one, and the others read NULL. A column
++        // whose path lies under another column's path reads NULL too, since that column consumed the
++        // container. Columns that are not decoded consume containers in the same way.
++        Map<String, BiFunction<IonReader, PageBuilder, Integer>> searchedColumns = new HashMap<>();
++        for (String name : tableColumnNames) {
++            searchedColumns.put(name, callbacks.getOrDefault(name, IonDecoder::consume));
++        }
++        callbacks.forEach(searchedColumns::putIfAbsent);
++
++        PathExtractorBuilder<PageBuilder> extractorBuilder = PathExtractorBuilder.<PageBuilder>standard()
++                .withMatchCaseInsensitive(!decoderConfig.caseSensitive());
++        for (Map.Entry<String, BiFunction<IonReader, PageBuilder, Integer>> entry : searchedColumns.entrySet()) {
++            String extractionPath = decoderConfig.pathExtractors().get(entry.getKey());
 +            if (extractionPath == null) {
-+                extractorBuilder.withSearchPath(List.of(new Text(name)), callback);
++                extractorBuilder.withSearchPath(List.of(new Text(entry.getKey())), entry.getValue());
 +            }
 +            else {
-+                extractorBuilder.withSearchPath(extractionPath, callback);
++                extractorBuilder.withSearchPath(extractionPath, entry.getValue());
 +            }
-+
-+            columnTypesBuilder.add(type);
 +        }
-+        extractor = extractorBuilder.buildStrict(decoderConfig.strictTyping());
++        // the legacy extractor matches like the SerDe's: any combination of paths, several callbacks per value
++        extractor = extractorBuilder.buildLegacy();
 +        columnTypes = columnTypesBuilder.build();
 +        encountered = new boolean[columns.size()];
 +    }
@@ -157,6 +188,10 @@ index 0000000..4c8ce65
 +    private BiFunction<IonReader, PageBuilder, Integer> callbackFor(BlockDecoder decoder, int pos)
 +    {
 +        return (ionReader, pageBuilder) -> {
++            if (ionReader.getType() == null) {
++                // another column consumed this container
++                return 0;
++            }
 +            BlockBuilder blockBuilder = pageBuilder.getBlockBuilder(pos);
 +            // for "top-level" columns, we keep the last of any duplicate fields.
 +            // this is consistent with the Ion Hive SerDe.
@@ -167,9 +202,19 @@ index 0000000..4c8ce65
 +                encountered[pos] = true;
 +            }
 +
-+            decoder.decode(ionReader, pageBuilder.getBlockBuilder(pos));
++            decoder.decode(ionReader, blockBuilder);
 +            return 0;
 +        };
++    }
++
++    private static Integer consume(IonReader ionReader, PageBuilder pageBuilder)
++    {
++        IonType type = ionReader.getType();
++        if (type != null && IonType.isContainer(type) && !ionReader.isNullValue()) {
++            ionReader.stepIn();
++            ionReader.stepOut();
++        }
++        return 0;
 +    }
 +
 +    private interface BlockDecoder
@@ -177,25 +222,33 @@ index 0000000..4c8ce65
 +        void decode(IonReader reader, BlockBuilder builder);
 +    }
 +
-+    private static BlockDecoder decoderForType(Type type)
++    /**
++     * @param failOnOverflow whether a value that does not fit the column fails, or is narrowed
++     * @param caseSensitive whether struct fields match case-sensitively
++     */
++    private record Options(boolean failOnOverflow, boolean caseSensitive) {}
++
++    private static BlockDecoder decoderForType(Type type, Options options)
 +    {
 +        return switch (type) {
-+            case TinyintType t -> wrapDecoder(BYTE_DECODER, t, IonType.INT);
-+            case SmallintType t -> wrapDecoder(SHORT_DECODER, t, IonType.INT);
-+            case IntegerType t -> wrapDecoder(INT_DECODER, t, IonType.INT);
-+            case BigintType t -> wrapDecoder(LONG_DECODER, t, IonType.INT);
-+            case RealType t -> wrapDecoder(REAL_DECODER, t, IonType.FLOAT);
-+            case DoubleType t -> wrapDecoder(FLOAT_DECODER, t, IonType.FLOAT);
-+            case DecimalType t -> wrapDecoder(decimalDecoder(t), t, IonType.DECIMAL, IonType.INT, IonType.FLOAT);
-+            case BooleanType t -> wrapDecoder(BOOL_DECODER, t, IonType.BOOL);
-+            case DateType t -> wrapDecoder(DATE_DECODER, t, IonType.TIMESTAMP);
-+            case TimestampType t -> wrapDecoder(timestampDecoder(t), t, IonType.TIMESTAMP);
-+            case VarcharType t -> wrapDecoder(varcharDecoder(t), t, IonType.values());
-+            case CharType t -> wrapDecoder(charDecoder(t), t, IonType.values());
-+            case VarbinaryType t -> wrapDecoder(BINARY_DECODER, t, IonType.BLOB, IonType.CLOB);
-+            case RowType t -> wrapDecoder(RowDecoder.forFields(t.getFields()), t, IonType.STRUCT);
-+            case ArrayType t -> wrapDecoder(new ArrayDecoder(decoderForType(t.getElementType())), t, IonType.LIST, IonType.SEXP);
-+            case MapType t -> wrapDecoder(new MapDecoder(t), t, IonType.STRUCT);
++            case TinyintType t -> wrapDecoder(intDecoder(t, "tinyint", Byte.MIN_VALUE, Byte.MAX_VALUE, value -> (byte) value, options), "IonInt", options, IonType.INT);
++            case SmallintType t -> wrapDecoder(intDecoder(t, "smallint", Short.MIN_VALUE, Short.MAX_VALUE, value -> (short) value, options), "IonInt", options, IonType.INT);
++            case IntegerType t -> wrapDecoder(intDecoder(t, "int", Integer.MIN_VALUE, Integer.MAX_VALUE, value -> value, options), "IonInt", options, IonType.INT);
++            case BigintType _ -> wrapDecoder(bigintDecoder(options), "IonInt", options, IonType.INT);
++            case RealType _ -> wrapDecoder(realDecoder(options), "IonFloat", options, IonType.FLOAT);
++            case DoubleType _ -> wrapDecoder(DOUBLE_DECODER, "IonFloat", options, IonType.FLOAT);
++            case DecimalType t -> nullable(decimalDecoder(t));
++            case BooleanType _ -> wrapDecoder(BOOL_DECODER, "IonBool", options, IonType.BOOL);
++            case DateType _ -> wrapDecoder(DATE_DECODER, "IonTimestamp", options, IonType.TIMESTAMP);
++            case TimestampType t -> wrapDecoder(timestampDecoder(t), "IonTimestamp", options, IonType.TIMESTAMP);
++            // a Hive string takes any Ion value, as text
++            case VarcharType t when t.isUnbounded() -> nullable(stringDecoder(t));
++            case VarcharType t -> wrapDecoder(varcharDecoder(t, options), "IonText", options, IonType.STRING, IonType.SYMBOL);
++            case CharType t -> wrapDecoder(charDecoder(t, options), "IonText", options, IonType.STRING, IonType.SYMBOL);
++            case VarbinaryType _ -> wrapDecoder(BINARY_DECODER, "IonLob", options, IonType.BLOB, IonType.CLOB);
++            case RowType t -> wrapDecoder(RowDecoder.forFields(t.getFields(), options), "IonStruct", options, IonType.STRUCT);
++            case ArrayType t -> wrapDecoder(new ArrayDecoder(decoderForType(t.getElementType(), options)), "IonSequence", options, IonType.LIST, IonType.SEXP);
++            case MapType t -> wrapDecoder(new MapDecoder(t, options), "IonStruct", options, IonType.STRUCT);
 +            default -> throw new IllegalArgumentException(String.format("Unsupported type: %s", type));
 +        };
 +    }
@@ -203,23 +256,29 @@ index 0000000..4c8ce65
 +    /**
 +     * Wraps decoders for common handling logic.
 +     * <p>
-+     * Handles un-typed and correctly typed null values.
-+     * Throws for mistyped values, whether null or not.
++     * Any null value, typed or not, reads as NULL.
++     * A value of another type fails as the SerDe's cast to the Ion interface it reads fails.
 +     * Delegates to Decoder for correctly-typed, non-null values.
-+     * <p>
-+     * This code treats all values as nullable.
 +     */
-+    private static BlockDecoder wrapDecoder(BlockDecoder decoder, Type trinoType, IonType... allowedTypes)
++    private static BlockDecoder wrapDecoder(BlockDecoder decoder, String serDeInterface, Options options, IonType... allowedTypes)
 +    {
-+        Set<IonType> allowedWithNull = new HashSet<>(Arrays.asList(allowedTypes));
-+        allowedWithNull.add(IonType.NULL);
-+
++        Set<IonType> allowed = EnumSet.copyOf(List.of(allowedTypes));
 +        return (reader, builder) -> {
-+            IonType ionType = reader.getType();
-+            if (!allowedWithNull.contains(ionType)) {
-+                throw new TrinoException(StandardErrorCode.GENERIC_USER_ERROR,
-+                        "Cannot coerce IonType %s to Trino type %s".formatted(ionType, trinoType));
++            if (reader.isNullValue()) {
++                builder.appendNull();
++                return;
 +            }
++            IonType ionType = reader.getType();
++            if (!allowed.contains(ionType)) {
++                throw castError(ionType, "com.amazon.ion." + serDeInterface, options.caseSensitive());
++            }
++            decoder.decode(reader, builder);
++        };
++    }
++
++    private static BlockDecoder nullable(BlockDecoder decoder)
++    {
++        return (reader, builder) -> {
 +            if (reader.isNullValue()) {
 +                builder.appendNull();
 +            }
@@ -229,19 +288,58 @@ index 0000000..4c8ce65
 +        };
 +    }
 +
-+    private record RowDecoder(Map<String, Integer> fieldPositions, List<BlockDecoder> fieldDecoders)
++    /**
++     * The error of the SerDe's cast of a value to the Ion interface its column reads, as the JVM words
++     * it: the SerDe holds values as ion-java's DOM classes, and wraps containers in its case-insensitive
++     * decorators unless path extraction is case-sensitive.
++     */
++    private static TrinoException castError(IonType ionType, String serDeInterface, boolean caseSensitive)
++    {
++        String valueClass = switch (ionType) {
++            case LIST, SEXP -> caseSensitive ? liteClass(ionType) : SERDE_DECORATOR_PACKAGE + "IonSequenceCaseInsensitiveDecorator";
++            case STRUCT -> caseSensitive ? liteClass(ionType) : SERDE_DECORATOR_PACKAGE + "IonStructCaseInsensitiveDecorator";
++            default -> liteClass(ionType);
++        };
++        ClassLoader loader = IonDecoder.class.getClassLoader();
++        String loaderDescription = loader.getClass().getName() + " @" + Integer.toHexString(System.identityHashCode(loader));
++        return new TrinoException(
++                SerDeErrorCode.GENERIC_INTERNAL_ERROR,
++                "class %s cannot be cast to class %s (%s and %s are in unnamed module of loader %s)"
++                        .formatted(valueClass, serDeInterface, valueClass, serDeInterface, loaderDescription));
++    }
++
++    private static String liteClass(IonType ionType)
++    {
++        String name = ionType.name();
++        return SERDE_LITE_PACKAGE + "Ion" + name.charAt(0) + name.substring(1).toLowerCase(Locale.ROOT) + "Lite";
++    }
++
++    private static TrinoException badData(String message)
++    {
++        return new TrinoException(SerDeErrorCode.HIVE_BAD_DATA, BAD_DATA_PREFIX + message);
++    }
++
++    private static TrinoException insufficientPrecision(IonReader reader, String hiveType)
++    {
++        return badData("insufficient precision for %s as %s".formatted(ionText(reader), hiveType));
++    }
++
++    private record RowDecoder(Map<String, Integer> fieldPositions, List<String> fieldNames, List<BlockDecoder> fieldDecoders, boolean caseSensitive)
 +            implements BlockDecoder
 +    {
-+        private static RowDecoder forFields(List<RowType.Field> fields)
++        private static RowDecoder forFields(List<RowType.Field> fields, Options options)
 +        {
 +            ImmutableList.Builder<BlockDecoder> decoderBuilder = ImmutableList.builder();
-+            ImmutableMap.Builder<String, Integer> fieldPositionBuilder = ImmutableMap.builder();
++            ImmutableList.Builder<String> fieldNameBuilder = ImmutableList.builder();
++            Map<String, Integer> fieldPositions = new HashMap<>();
 +            for (int pos = 0; pos < fields.size(); pos++) {
 +                RowType.Field field = fields.get(pos);
-+                decoderBuilder.add(decoderForType(field.getType()));
-+                fieldPositionBuilder.put(field.getName().get().toLowerCase(Locale.ROOT), pos);
++                String name = field.getName().orElseThrow();
++                decoderBuilder.add(decoderForType(field.getType(), options));
++                fieldNameBuilder.add(name);
++                fieldPositions.putIfAbsent(options.caseSensitive() ? name : name.toLowerCase(Locale.ROOT), pos);
 +            }
-+            return new RowDecoder(fieldPositionBuilder.buildOrThrow(), decoderBuilder.build());
++            return new RowDecoder(fieldPositions, fieldNameBuilder.build(), decoderBuilder.build(), options.caseSensitive());
 +        }
 +
 +        @Override
@@ -254,25 +352,31 @@ index 0000000..4c8ce65
 +        // assumes that the reader is positioned on a non-null struct value
 +        private void decode(IonReader ionReader, IntFunction<BlockBuilder> blockSelector)
 +        {
-+            boolean[] encountered = new boolean[fieldDecoders.size()];
++            // Like the SerDe's struct lookup: an exact match of the field name wins over one that only
++            // matches ignoring case, and among duplicate fields the first one wins.
++            int[] matched = new int[fieldDecoders.size()];
 +            ionReader.stepIn();
 +
 +            while (ionReader.next() != null) {
-+                Integer fieldIndex = fieldPositions.get(ionReader.getFieldName().toLowerCase(Locale.ROOT));
++                String fieldName = ionReader.getFieldName();
++                Integer fieldIndex = fieldPositions.get(caseSensitive ? fieldName : fieldName.toLowerCase(Locale.ROOT));
 +                if (fieldIndex == null) {
 +                    continue;
 +                }
-+                BlockBuilder blockBuilder = blockSelector.apply(fieldIndex);
-+                // for nested Row types, we keep the first of any duplicate fields.
-+                // this is consistent with the Ion Hive SerDe.
-+                if (!encountered[fieldIndex]) {
-+                    fieldDecoders.get(fieldIndex).decode(ionReader, blockBuilder);
-+                    encountered[fieldIndex] = true;
++                int match = fieldName.equals(fieldNames.get(fieldIndex)) ? 2 : 1;
++                if (match <= matched[fieldIndex]) {
++                    continue;
 +                }
++                BlockBuilder blockBuilder = blockSelector.apply(fieldIndex);
++                if (matched[fieldIndex] != 0) {
++                    blockBuilder.resetTo(blockBuilder.getPositionCount() - 1);
++                }
++                fieldDecoders.get(fieldIndex).decode(ionReader, blockBuilder);
++                matched[fieldIndex] = match;
 +            }
 +
-+            for (int i = 0; i < encountered.length; i++) {
-+                if (!encountered[i]) {
++            for (int i = 0; i < matched.length; i++) {
++                if (matched[i] == 0) {
 +                    blockSelector.apply(i).appendNull();
 +                }
 +            }
@@ -290,11 +394,11 @@ index 0000000..4c8ce65
 +        private BlockBuilder keyBlockBuilder;
 +        private BlockBuilder valueBlockBuilder;
 +
-+        MapDecoder(MapType mapType)
++        MapDecoder(MapType mapType, Options options)
 +        {
 +            Type keyType = mapType.getKeyType();
 +            Type valueType = mapType.getValueType();
-+            this.valueDecoder = decoderForType(valueType);
++            this.valueDecoder = decoderForType(valueType, options);
 +            // we configure the distinct key selector to use the last entry
 +            // this is consistent with how the Ion Hive SerDe handled duplicate map fields.
 +            this.distinctMapKeys = new DistinctMapKeys(mapType, true);
@@ -363,29 +467,14 @@ index 0000000..4c8ce65
 +
 +    private static BlockDecoder timestampDecoder(TimestampType type)
 +    {
-+        // Ion supports arbitrarily precise Timestamps.
-+        // Other Hive formats are using the DecodedTimestamp and TrinoTimestampEncoders in
-+        // io.trino.plugin.base.type but those don't cover picos.
-+        // This code uses same pattern of splitting the parsed timestamp into (seconds, fraction)
-+        // then rounding the fraction using Timestamps.round() ensures consistency with the others
-+        // while capturing picos if present. Fractional precision beyond picos is ignored.
++        // The SerDe reads the timestamp's UTC instant in milliseconds: finer fractions are truncated.
 +        return (reader, builder) -> {
-+            BigDecimal decimalSeconds = reader.timestampValue()
-+                    .getDecimalMillis()
-+                    .movePointLeft(3);
-+            BigDecimal decimalPicos = decimalSeconds.remainder(BigDecimal.ONE)
-+                    .movePointRight(12);
-+
-+            long fractionalPicos = Timestamps.round(decimalPicos.longValue(), 12 - type.getPrecision());
-+            long epochMicros = decimalSeconds.longValue() * Timestamps.MICROSECONDS_PER_SECOND
-+                    + fractionalPicos / Timestamps.PICOSECONDS_PER_MICROSECOND;
-+
++            long epochMicros = reader.timestampValue().getMillis() * Timestamps.MICROSECONDS_PER_MILLISECOND;
 +            if (type.isShort()) {
 +                type.writeLong(builder, epochMicros);
 +            }
 +            else {
-+                type.writeObject(builder,
-+                        new LongTimestamp(epochMicros, (int) (fractionalPicos % Timestamps.PICOSECONDS_PER_MICROSECOND)));
++                type.writeObject(builder, new LongTimestamp(epochMicros, 0));
 +            }
 +        };
 +    }
@@ -396,35 +485,42 @@ index 0000000..4c8ce65
 +        int scale = type.getScale();
 +
 +        return (reader, builder) -> {
-+            try {
-+                BigDecimal decimal = reader.bigDecimalValue();
-+                BigInteger unscaled = decimal
-+                        .setScale(scale, RoundingMode.UNNECESSARY)
-+                        .unscaledValue();
-+
-+                if (Decimals.overflows(unscaled, precision)) {
-+                    throw new TrinoException(StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE,
-+                            "Decimal value %s does not fit %d digits of precision and %d of scale!"
-+                                    .formatted(decimal, precision, scale));
-+                }
-+                if (type.isShort()) {
-+                    type.writeLong(builder, unscaled.longValue());
-+                }
-+                else {
-+                    type.writeObject(builder, Int128.valueOf(unscaled));
-+                }
++            IonType ionType = reader.getType();
++            if (ionType != IonType.INT && ionType != IonType.DECIMAL) {
++                throw badData("Invalid Ion type: " + ionType);
 +            }
-+            catch (ArithmeticException e) {
++            // The SerDe's HiveDecimal drops trailing zeros, and Athena rescales it to the column's scale.
++            BigDecimal decimal = ionType == IonType.INT ? new BigDecimal(reader.bigIntegerValue()) : reader.bigDecimalValue();
++            decimal = decimal.stripTrailingZeros();
++            if (decimal.scale() < 0) {
++                decimal = decimal.setScale(0);
++            }
++            if (decimal.scale() > scale) {
++                throw badData("target scale must be larger than source scale");
++            }
++            BigInteger unscaled = decimal.setScale(scale).unscaledValue();
++            // Athena returns a value with more digits than the precision as it is, but Trino cannot
++            // send such a value to its clients.
++            if (Decimals.overflows(unscaled, precision)) {
 +                throw new TrinoException(StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE,
-+                        "Decimal value %s does not fit %d digits of scale!".formatted(reader.bigDecimalValue(), scale));
++                        "Decimal value %s does not fit %d digits of precision and %d of scale!".formatted(decimal, precision, scale));
++            }
++            if (type.isShort()) {
++                type.writeLong(builder, unscaled.longValue());
++            }
++            else {
++                type.writeObject(builder, Int128.valueOf(unscaled));
 +            }
 +        };
 +    }
 +
-+    private static String getCoercedValue(IonReader ionReader)
++    /**
++     * The value as the SerDe prints it: Ion text with ASCII characters only.
++     */
++    private static String ionText(IonReader ionReader)
 +    {
 +        StringBuilder stringBuilder = new StringBuilder();
-+        try (IonWriter writer = IonTextWriterBuilder.standard().build(stringBuilder)) {
++        try (IonWriter writer = TEXT_WRITER.build(stringBuilder)) {
 +            writer.writeValue(ionReader);
 +        }
 +        catch (IOException e) {
@@ -433,74 +529,96 @@ index 0000000..4c8ce65
 +        return stringBuilder.toString();
 +    }
 +
-+    private static BlockDecoder varcharDecoder(VarcharType type)
++    private static String textValue(IonReader ionReader)
++    {
++        IonType valueType = ionReader.getType();
++        if (valueType == IonType.SYMBOL || valueType == IonType.STRING) {
++            return ionReader.stringValue();
++        }
++        // For any types other than IonType.SYMBOL and IonType.STRING, performs text coercion
++        return ionText(ionReader);
++    }
++
++    private static BlockDecoder stringDecoder(VarcharType type)
++    {
++        return (ionReader, blockBuilder) ->
++                type.writeSlice(blockBuilder, Slices.utf8Slice(textValue(ionReader)));
++    }
++
++    private static BlockDecoder varcharDecoder(VarcharType type, Options options)
 +    {
 +        return (ionReader, blockBuilder) -> {
-+            IonType valueType = ionReader.getType();
-+            String value;
-+
-+            if (valueType == IonType.SYMBOL || valueType == IonType.STRING) {
-+                value = ionReader.stringValue();
-+            }
-+            else {
-+                // For any types other than IonType.SYMBOL and IonType.STRING, performs text coercion
-+                value = getCoercedValue(ionReader);
-+            }
++            String value = ionReader.stringValue();
++            checkTextLength(value, type.getBoundedLength(), options);
 +            type.writeSlice(blockBuilder, Varchars.truncateToLength(Slices.utf8Slice(value), type));
 +        };
 +    }
 +
-+    private static BlockDecoder charDecoder(CharType type)
++    private static BlockDecoder charDecoder(CharType type, Options options)
 +    {
 +        return (ionReader, blockBuilder) -> {
-+            IonType valueType = ionReader.getType();
-+            String value;
-+
-+            if (valueType == IonType.SYMBOL || valueType == IonType.STRING) {
-+                value = ionReader.stringValue();
-+            }
-+            else {
-+                // For any types other than IonType.SYMBOL and IonType.STRING, performs text coercion
-+                value = getCoercedValue(ionReader);
-+            }
++            String value = ionReader.stringValue();
++            checkTextLength(value, type.getLength(), options);
 +            type.writeSlice(blockBuilder, Chars.truncateToLengthAndTrimSpaces(Slices.utf8Slice(value), type));
 +        };
 +    }
 +
-+    private static final BlockDecoder BYTE_DECODER = (ionReader, blockBuilder) ->
-+            TinyintType.TINYINT.writeLong(blockBuilder, readLong(ionReader));
-+
-+    private static final BlockDecoder SHORT_DECODER = (ionReader, blockBuilder) ->
-+            SmallintType.SMALLINT.writeLong(blockBuilder, readLong(ionReader));
-+
-+    private static final BlockDecoder INT_DECODER = (ionReader, blockBuilder) ->
-+            IntegerType.INTEGER.writeLong(blockBuilder, readLong(ionReader));
-+
-+    private static final BlockDecoder LONG_DECODER = (ionReader, blockBuilder) ->
-+            BigintType.BIGINT.writeLong(blockBuilder, readLong(ionReader));
-+
-+    private static long readLong(IonReader ionReader)
++    private static void checkTextLength(String text, int maxLength, Options options)
 +    {
-+        try {
-+            return ionReader.longValue();
-+        }
-+        catch (IonException e) {
-+            throw new TrinoException(StandardErrorCode.GENERIC_USER_ERROR, e.getMessage());
++        if (options.failOnOverflow() && text.length() > maxLength) {
++            throw badData("text is longer than allowed. Size: " + text.length() + ", max: " + maxLength);
 +        }
 +    }
 +
-+    private static final BlockDecoder REAL_DECODER = (ionReader, blockBuilder) -> {
-+        double readValue = ionReader.doubleValue();
-+        if (readValue == (float) readValue) {
-+            RealType.REAL.writeFloat(blockBuilder, (float) readValue);
-+        }
-+        else {
-+            throw new TrinoException(StandardErrorCode.GENERIC_USER_ERROR,
-+                    "Won't truncate double precise float to real!");
-+        }
-+    };
++    /**
++     * Without failOnOverflow, the SerDe narrows the low 32 bits of the value like a Java cast.
++     */
++    private static BlockDecoder intDecoder(Type type, String hiveType, int min, int max, IntUnaryOperator narrow, Options options)
++    {
++        return (ionReader, blockBuilder) -> {
++            int value;
++            if (options.failOnOverflow()) {
++                if (ionReader.getIntegerSize() != IntegerSize.INT || ionReader.intValue() < min || ionReader.intValue() > max) {
++                    throw insufficientPrecision(ionReader, hiveType);
++                }
++                value = ionReader.intValue();
++            }
++            else {
++                value = narrow.applyAsInt(ionReader.bigIntegerValue().intValue());
++            }
++            type.writeLong(blockBuilder, value);
++        };
++    }
 +
-+    private static final BlockDecoder FLOAT_DECODER = (ionReader, blockBuilder) ->
++    private static BlockDecoder bigintDecoder(Options options)
++    {
++        return (ionReader, blockBuilder) -> {
++            long value;
++            if (ionReader.getIntegerSize() != IntegerSize.BIG_INTEGER) {
++                value = ionReader.longValue();
++            }
++            else if (options.failOnOverflow()) {
++                throw insufficientPrecision(ionReader, "bigint");
++            }
++            else {
++                value = ionReader.bigIntegerValue().longValue();
++            }
++            BigintType.BIGINT.writeLong(blockBuilder, value);
++        };
++    }
++
++    private static BlockDecoder realDecoder(Options options)
++    {
++        return (ionReader, blockBuilder) -> {
++            double value = ionReader.doubleValue();
++            if (options.failOnOverflow() && Double.compare((float) value, value) != 0) {
++                throw insufficientPrecision(ionReader, "float");
++            }
++            RealType.REAL.writeFloat(blockBuilder, (float) value);
++        };
++    }
++
++    private static final BlockDecoder DOUBLE_DECODER = (ionReader, blockBuilder) ->
 +            DoubleType.DOUBLE.writeDouble(blockBuilder, ionReader.doubleValue());
 +
 +    private static final BlockDecoder BOOL_DECODER = (ionReader, blockBuilder) ->
@@ -514,13 +632,38 @@ index 0000000..4c8ce65
 +
 +    private static final BlockDecoder BINARY_DECODER = (ionReader, blockBuilder) ->
 +            VarbinaryType.VARBINARY.writeSlice(blockBuilder, Slices.wrappedBuffer(ionReader.newBytes()));
++
++    /**
++     * The errors Athena reports for the SerDe: HIVE_BAD_DATA for a value that fails a check, and
++     * GENERIC_INTERNAL_ERROR for a value of the wrong Ion type, both counted as user errors.
++     */
++    private enum SerDeErrorCode
++            implements ErrorCodeSupplier
++    {
++        // the code of HiveErrorCode.HIVE_BAD_DATA, which this library cannot use
++        HIVE_BAD_DATA(0x0100_0000 + 7),
++        GENERIC_INTERNAL_ERROR(StandardErrorCode.GENERIC_INTERNAL_ERROR.toErrorCode().getCode());
++
++        private final ErrorCode errorCode;
++
++        SerDeErrorCode(int code)
++        {
++            errorCode = new ErrorCode(code, name(), ErrorType.EXTERNAL);
++        }
++
++        @Override
++        public ErrorCode toErrorCode()
++        {
++            return errorCode;
++        }
++    }
 +}
 diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoderConfig.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoderConfig.java
 new file mode 100644
-index 0000000..c4c238b
+index 0000000..9bab56f
 --- /dev/null
 +++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoderConfig.java
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,62 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -536,6 +679,8 @@ index 0000000..c4c238b
 + */
 +package io.trino.hive.formats.ion;
 +
++import com.google.common.collect.ImmutableMap;
++
 +import java.util.Map;
 +
 +/**
@@ -544,31 +689,41 @@ index 0000000..c4c238b
 + * @param pathExtractors Map of column name => ion paths
 + *        for each entry in the map, the value bound to the column will be the result
 + *        of extracting the given search path.
-+ * @param strictTyping whether the path extractions should enforce type expectations.
-+ *        this only affects type checking of path extractions; any value decoded into
-+ *        a trino column will be correctly typed or coerced for that column.
 + * @param caseSensitive whether field name matching should be case-sensitive or not.
++ * @param failOnOverflow whether a value that does not fit its column fails the query,
++ *        for columns without their own setting; otherwise it is narrowed like a Java cast.
++ * @param columnFailOnOverflow the columns' own failOnOverflow settings, by column name.
 + */
-+public record IonDecoderConfig(Map<String, String> pathExtractors, boolean strictTyping, boolean caseSensitive)
++public record IonDecoderConfig(
++        Map<String, String> pathExtractors,
++        boolean caseSensitive,
++        boolean failOnOverflow,
++        Map<String, Boolean> columnFailOnOverflow)
 +{
-+    static IonDecoderConfig defaultConfig()
++    public IonDecoderConfig
 +    {
-+        return new IonDecoderConfig(Map.of(), false, false);
++        pathExtractors = ImmutableMap.copyOf(pathExtractors);
++        columnFailOnOverflow = ImmutableMap.copyOf(columnFailOnOverflow);
 +    }
 +
-+    IonDecoderConfig withStrictTyping()
++    static IonDecoderConfig defaultConfig()
 +    {
-+        return new IonDecoderConfig(pathExtractors, true, caseSensitive);
++        return new IonDecoderConfig(Map.of(), false, true, Map.of());
 +    }
 +
 +    IonDecoderConfig withCaseSensitive()
 +    {
-+        return new IonDecoderConfig(pathExtractors, strictTyping, true);
++        return new IonDecoderConfig(pathExtractors, true, failOnOverflow, columnFailOnOverflow);
 +    }
 +
 +    IonDecoderConfig withPathExtractors(Map<String, String> pathExtractors)
 +    {
-+        return new IonDecoderConfig(pathExtractors, strictTyping, caseSensitive);
++        return new IonDecoderConfig(pathExtractors, caseSensitive, failOnOverflow, columnFailOnOverflow);
++    }
++
++    boolean failOnOverflow(String columnName)
++    {
++        return columnFailOnOverflow.getOrDefault(columnName, failOnOverflow);
 +    }
 +}
 diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java
@@ -1109,7 +1264,7 @@ index 0000000..cb0749a
 +}
 diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriterFactory.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriterFactory.java
 new file mode 100644
-index 0000000..0283b99
+index 0000000..ec30a37
 --- /dev/null
 +++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriterFactory.java
 @@ -0,0 +1,108 @@
@@ -1192,7 +1347,7 @@ index 0000000..0283b99
 +            return Optional.empty();
 +        }
 +
-+        IonSerDeProperties.validatePropertySupport(schema);
++        IonSerDeProperties.validateWriterPropertySupport(schema);
 +
 +        try {
 +            TrinoFileSystem fileSystem = fileSystemFactory.create(session);
@@ -1223,10 +1378,10 @@ index 0000000..0283b99
 +}
 diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSource.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSource.java
 new file mode 100644
-index 0000000..1f608d6
+index 0000000..5b7c0e8
 --- /dev/null
 +++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSource.java
-@@ -0,0 +1,123 @@
+@@ -0,0 +1,156 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -1243,11 +1398,16 @@ index 0000000..1f608d6
 +package io.trino.plugin.hive.ion;
 +
 +import com.amazon.ion.IonBufferConfiguration;
++import com.amazon.ion.IonException;
 +import com.amazon.ion.IonReader;
++import com.amazon.ion.IonSystem;
 +import com.amazon.ion.IonType;
++import com.amazon.ion.IonValue;
++import com.amazon.ion.system.IonSystemBuilder;
 +import io.trino.hive.formats.ion.IonDecoder;
 +import io.trino.spi.Page;
 +import io.trino.spi.PageBuilder;
++import io.trino.spi.TrinoException;
 +import io.trino.spi.connector.ConnectorPageSource;
 +import io.trino.spi.connector.SourcePage;
 +
@@ -1256,26 +1416,34 @@ index 0000000..1f608d6
 +import java.util.function.LongSupplier;
 +
 +import static io.airlift.slice.SizeOf.instanceSize;
++import static io.trino.plugin.hive.HiveErrorCode.HIVE_CURSOR_ERROR;
 +import static java.util.Objects.requireNonNull;
 +
 +public class IonPageSource
 +        implements ConnectorPageSource
 +{
 +    private static final int INSTANCE_SIZE = instanceSize(IonPageSource.class);
++    private static final IonSystem ION_SYSTEM = IonSystemBuilder.standard().build();
 +
 +    private final IonReader ionReader;
 +    private final LongSupplier completedBytes;
 +    private final PageBuilder pageBuilder;
 +    private final IonDecoder decoder;
++    private final boolean ignoreMalformed;
 +    private long readTimeNanos;
 +    private int completedPositions;
 +    private boolean finished;
 +
-+    public IonPageSource(IonReader ionReader, LongSupplier completedBytes, IonDecoder decoder)
++    /**
++     * @param ignoreMalformed whether malformed Ion ends the file without an error, as the SerDe's
++     * ion.ignore_malformed does: the values before it are read, the rest of the file is skipped.
++     */
++    public IonPageSource(IonReader ionReader, LongSupplier completedBytes, IonDecoder decoder, boolean ignoreMalformed)
 +    {
 +        this.ionReader = requireNonNull(ionReader);
 +        this.completedBytes = requireNonNull(completedBytes);
 +        this.decoder = requireNonNull(decoder);
++        this.ignoreMalformed = ignoreMalformed;
 +        this.pageBuilder = new PageBuilder(decoder.getColumnTypes());
 +    }
 +
@@ -1338,24 +1506,44 @@ index 0000000..1f608d6
 +    private boolean readNextValue()
 +    {
 +        long start = System.nanoTime();
-+        IonType type = ionReader.next();
-+
-+        if (type == null) {
-+            readTimeNanos += System.nanoTime() - start;
-+            return false;
++        try {
++            IonType type = ionReader.next();
++            if (type == null) {
++                return false;
++            }
++            if (ignoreMalformed) {
++                // reads the whole value first, so that malformed Ion leaves no partial row behind
++                IonValue value = ION_SYSTEM.newValue(ionReader);
++                try (IonReader valueReader = ION_SYSTEM.newReader(value)) {
++                    valueReader.next();
++                    decoder.decode(valueReader, pageBuilder);
++                }
++            }
++            else {
++                decoder.decode(ionReader, pageBuilder);
++            }
++            return true;
 +        }
-+        decoder.decode(ionReader, pageBuilder);
-+
-+        readTimeNanos += System.nanoTime() - start;
-+        return true;
++        catch (IonException e) {
++            if (ignoreMalformed) {
++                return false;
++            }
++            throw new TrinoException(HIVE_CURSOR_ERROR, e.getMessage(), e);
++        }
++        catch (IOException e) {
++            throw new TrinoException(HIVE_CURSOR_ERROR, e.getMessage(), e);
++        }
++        finally {
++            readTimeNanos += System.nanoTime() - start;
++        }
 +    }
 +}
 diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSourceFactory.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSourceFactory.java
 new file mode 100644
-index 0000000..b416fa1
+index 0000000..894266b
 --- /dev/null
 +++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonPageSourceFactory.java
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,129 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -1438,7 +1626,6 @@ index 0000000..b416fa1
 +        if (!ION_SERDE_CLASS.equals(schema.serializationLibraryName())) {
 +            return Optional.empty();
 +        }
-+        IonSerDeProperties.validatePropertySupport(schema.serdeProperties());
 +        checkArgument(acidInfo.isEmpty(), "Acid is not supported for Ion files");
 +
 +        // Skip empty inputs
@@ -1468,15 +1655,17 @@ index 0000000..b416fa1
 +            }
 +
 +            IonDecoderConfig decoderConfig = IonSerDeProperties.decoderConfigFor(schema.serdeProperties());
++            List<String> tableColumnNames = IonSerDeProperties.tableColumnNames(schema.serdeProperties());
++            boolean ignoreMalformed = IonSerDeProperties.ignoreMalformed(schema.serdeProperties());
 +
 +            return Optional.of(projectColumnDereferences(columns, baseColumns -> {
 +                List<Column> decoderColumns = baseColumns.stream()
 +                        .map(hc -> new Column(hc.getName(), hc.getType(), hc.getBaseHiveColumnIndex()))
 +                        .toList();
 +
-+                IonDecoder decoder = new IonDecoder(decoderColumns, decoderConfig);
++                IonDecoder decoder = new IonDecoder(decoderColumns, tableColumnNames, decoderConfig);
 +                IonReader ionReader = IonReaderBuilder.standard().build(inputStream);
-+                return new IonPageSource(ionReader, countingInputStream::getCount, decoder);
++                return new IonPageSource(ionReader, countingInputStream::getCount, decoder, ignoreMalformed);
 +            }));
 +        }
 +        catch (IOException e) {
@@ -1486,10 +1675,10 @@ index 0000000..b416fa1
 +}
 diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonSerDeProperties.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonSerDeProperties.java
 new file mode 100644
-index 0000000..ed64066
+index 0000000..a07a18b
 --- /dev/null
 +++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonSerDeProperties.java
-@@ -0,0 +1,154 @@
+@@ -0,0 +1,175 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -1523,24 +1712,27 @@ index 0000000..ed64066
 +
 +import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 +
++/**
++ * The SerDe properties of the Ion Hive SerDe. Like the SerDe, readers ignore the writer properties,
++ * and writers the reader properties.
++ */
 +public final class IonSerDeProperties
 +{
 +    private static final Logger log = Logger.get(IonSerDeProperties.class);
 +
 +    // Reader properties
-+    public static final String STRICT_PATH_TYPING_PROPERTY = "ion.path_extractor.strict";
-+    public static final String STRICT_PATH_TYPING_DEFAULT = "false";
-+    public static final String PATH_EXTRACTOR_PROPERTY = "ion.(\\w+).path_extractor";
++    public static final String PATH_EXTRACTOR_PROPERTY = "ion\\.(.+)\\.path_extractor";
 +    public static final String PATH_EXTRACTION_CASE_SENSITIVITY = "ion.path_extractor.case_sensitive";
 +    public static final String PATH_EXTRACTION_CASE_SENSITIVITY_DEFAULT = "false";
 +    private static final Pattern pathExtractorPattern = Pattern.compile(PATH_EXTRACTOR_PROPERTY);
-+
-+    // unimplemented reader properties
 +    public static final String FAIL_ON_OVERFLOW_PROPERTY = "ion.fail_on_overflow";
 +    public static final String FAIL_ON_OVERFLOW_PROPERTY_DEFAULT = "true";
-+    public static final String FAIL_ON_OVERFLOW_COLUMN_PROPERTY = "ion.\\w+.fail_on_overflow";
++    public static final String FAIL_ON_OVERFLOW_COLUMN_PROPERTY = "ion\\.(.+)\\.fail_on_overflow";
++    private static final Pattern failOnOverflowColumnPattern = Pattern.compile(FAIL_ON_OVERFLOW_COLUMN_PROPERTY);
 +    public static final String IGNORE_MALFORMED = "ion.ignore_malformed";
 +    public static final String IGNORE_MALFORMED_DEFAULT = "false";
++    // the table's columns, which the Hive schema lists separated by commas
++    private static final String COLUMNS_PROPERTY = "columns";
 +
 +    // Writer properties
 +    public static final String ION_ENCODING_PROPERTY = "ion.encoding";
@@ -1554,37 +1746,55 @@ index 0000000..ed64066
 +    public static final String ION_SERIALIZE_NULL_AS_DEFAULT = "OMIT";
 +    public static final String ION_SERIALIZE_NULL_AS_COLUMN_PROPERTY = "ion.\\w+.serialize_as";
 +
-+    private static final Pattern unsupportedPropertiesRegex = Pattern.compile(
-+            ION_SERIALIZE_NULL_AS_COLUMN_PROPERTY + "|" + FAIL_ON_OVERFLOW_COLUMN_PROPERTY);
++    private static final Pattern unsupportedWriterPropertiesRegex = Pattern.compile(ION_SERIALIZE_NULL_AS_COLUMN_PROPERTY);
 +
-+    private static final Map<String, String> defaultOnlyProperties = Map.of(
-+            // reader properties
-+            FAIL_ON_OVERFLOW_PROPERTY, FAIL_ON_OVERFLOW_PROPERTY_DEFAULT,
-+            IGNORE_MALFORMED, IGNORE_MALFORMED_DEFAULT,
-+
-+            // writer properties
++    private static final Map<String, String> defaultOnlyWriterProperties = Map.of(
 +            ION_TIMESTAMP_OFFSET_PROPERTY, ION_TIMESTAMP_OFFSET_DEFAULT,
 +            ION_SERIALIZE_NULL_AS_PROPERTY, ION_SERIALIZE_NULL_AS_DEFAULT);
 +
 +    private IonSerDeProperties() {}
 +
++    /**
++     * Reads the reader properties as the SerDe does: a boolean is true only if its value is "true",
++     * ignoring case, and a column's own fail_on_overflow overrides the table's.
++     */
 +    public static IonDecoderConfig decoderConfigFor(Map<String, String> propertiesMap)
 +    {
 +        ImmutableMap.Builder<String, String> extractionsBuilder = ImmutableMap.builder();
++        ImmutableMap.Builder<String, Boolean> columnFailOnOverflowBuilder = ImmutableMap.builder();
 +
 +        for (Map.Entry<String, String> property : propertiesMap.entrySet()) {
 +            Matcher matcher = pathExtractorPattern.matcher(property.getKey());
 +            if (matcher.matches()) {
 +                extractionsBuilder.put(matcher.group(1), property.getValue());
 +            }
++            matcher = failOnOverflowColumnPattern.matcher(property.getKey());
++            if (matcher.matches()) {
++                columnFailOnOverflowBuilder.put(matcher.group(1), Boolean.parseBoolean(property.getValue()));
++            }
 +        }
 +
-+        boolean strictTyping = Boolean.parseBoolean(
-+                propertiesMap.getOrDefault(STRICT_PATH_TYPING_PROPERTY, STRICT_PATH_TYPING_DEFAULT));
 +        boolean caseSensitive = Boolean.parseBoolean(
 +                propertiesMap.getOrDefault(PATH_EXTRACTION_CASE_SENSITIVITY, PATH_EXTRACTION_CASE_SENSITIVITY_DEFAULT));
++        boolean failOnOverflow = Boolean.parseBoolean(
++                propertiesMap.getOrDefault(FAIL_ON_OVERFLOW_PROPERTY, FAIL_ON_OVERFLOW_PROPERTY_DEFAULT));
 +
-+        return new IonDecoderConfig(extractionsBuilder.buildOrThrow(), strictTyping, caseSensitive);
++        return new IonDecoderConfig(
++                extractionsBuilder.buildOrThrow(),
++                caseSensitive,
++                failOnOverflow,
++                columnFailOnOverflowBuilder.buildOrThrow());
++    }
++
++    public static boolean ignoreMalformed(Map<String, String> propertiesMap)
++    {
++        return Boolean.parseBoolean(propertiesMap.getOrDefault(IGNORE_MALFORMED, IGNORE_MALFORMED_DEFAULT));
++    }
++
++    public static List<String> tableColumnNames(Map<String, String> propertiesMap)
++    {
++        String columns = propertiesMap.getOrDefault(COLUMNS_PROPERTY, "");
++        return columns.isEmpty() ? List.of() : List.of(columns.split(","));
 +    }
 +
 +    public enum IonEncoding
@@ -1620,10 +1830,10 @@ index 0000000..ed64066
 +    }
 +
 +    /**
-+     * Checks if all of the properties starting with "ion." are supported.
++     * Checks that the writer properties starting with "ion." are supported.
 +     * Throws TrinoException if any are unsupported.
 +     */
-+    public static void validatePropertySupport(Map<String, String> properties)
++    public static void validateWriterPropertySupport(Map<String, String> properties)
 +    {
 +        List<String> errors = new LinkedList<>();
 +        for (Map.Entry<String, String> entry : properties.entrySet()) {
@@ -1632,9 +1842,9 @@ index 0000000..ed64066
 +            if (!key.startsWith("ion.")) {
 +                continue;
 +            }
-+            String defaultValue = defaultOnlyProperties.get(key);
++            String defaultValue = defaultOnlyWriterProperties.get(key);
 +            if ((defaultValue != null && !defaultValue.equals(value))
-+                    || unsupportedPropertiesRegex.matcher(key).matches()) {
++                    || unsupportedWriterPropertiesRegex.matcher(key).matches()) {
 +                log.error("Ion Table contains unsupported SerDe property: %s => %s", key, value);
 +                errors.add(String.format("%s = %s", key, value));
 +            }
