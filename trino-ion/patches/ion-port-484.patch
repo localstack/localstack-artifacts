@@ -14,10 +14,10 @@ index deb186d..60931f3 100644
      public static final String OPENX_JSON_SERDE_CLASS = "org.openx.data.jsonserde.JsonSerDe";
 diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoder.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoder.java
 new file mode 100644
-index 0000000..d25720d
+index 0000000..a3373e6
 --- /dev/null
 +++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoder.java
-@@ -0,0 +1,640 @@
+@@ -0,0 +1,607 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -46,9 +46,6 @@ index 0000000..d25720d
 +import io.airlift.slice.Slices;
 +import io.trino.hive.formats.DistinctMapKeys;
 +import io.trino.hive.formats.line.Column;
-+import io.trino.spi.ErrorCode;
-+import io.trino.spi.ErrorCodeSupplier;
-+import io.trino.spi.ErrorType;
 +import io.trino.spi.PageBuilder;
 +import io.trino.spi.StandardErrorCode;
 +import io.trino.spi.TrinoException;
@@ -300,12 +297,7 @@ index 0000000..d25720d
 +            case STRUCT -> caseSensitive ? liteClass(ionType) : SERDE_DECORATOR_PACKAGE + "IonStructCaseInsensitiveDecorator";
 +            default -> liteClass(ionType);
 +        };
-+        ClassLoader loader = IonDecoder.class.getClassLoader();
-+        String loaderDescription = loader.getClass().getName() + " @" + Integer.toHexString(System.identityHashCode(loader));
-+        return new TrinoException(
-+                SerDeErrorCode.GENERIC_INTERNAL_ERROR,
-+                "class %s cannot be cast to class %s (%s and %s are in unnamed module of loader %s)"
-+                        .formatted(valueClass, serDeInterface, valueClass, serDeInterface, loaderDescription));
++        return IonSerDeErrors.castError(valueClass, serDeInterface);
 +    }
 +
 +    private static String liteClass(IonType ionType)
@@ -316,7 +308,7 @@ index 0000000..d25720d
 +
 +    private static TrinoException badData(String message)
 +    {
-+        return new TrinoException(SerDeErrorCode.HIVE_BAD_DATA, BAD_DATA_PREFIX + message);
++        return new TrinoException(IonSerDeErrors.Code.HIVE_BAD_DATA, BAD_DATA_PREFIX + message);
 +    }
 +
 +    private static TrinoException insufficientPrecision(IonReader reader, String hiveType)
@@ -632,31 +624,6 @@ index 0000000..d25720d
 +
 +    private static final BlockDecoder BINARY_DECODER = (ionReader, blockBuilder) ->
 +            VarbinaryType.VARBINARY.writeSlice(blockBuilder, Slices.wrappedBuffer(ionReader.newBytes()));
-+
-+    /**
-+     * The errors Athena reports for the SerDe: HIVE_BAD_DATA for a value that fails a check, and
-+     * GENERIC_INTERNAL_ERROR for a value of the wrong Ion type, both counted as user errors.
-+     */
-+    private enum SerDeErrorCode
-+            implements ErrorCodeSupplier
-+    {
-+        // the code of HiveErrorCode.HIVE_BAD_DATA, which this library cannot use
-+        HIVE_BAD_DATA(0x0100_0000 + 7),
-+        GENERIC_INTERNAL_ERROR(StandardErrorCode.GENERIC_INTERNAL_ERROR.toErrorCode().getCode());
-+
-+        private final ErrorCode errorCode;
-+
-+        SerDeErrorCode(int code)
-+        {
-+            errorCode = new ErrorCode(code, name(), ErrorType.EXTERNAL);
-+        }
-+
-+        @Override
-+        public ErrorCode toErrorCode()
-+        {
-+            return errorCode;
-+        }
-+    }
 +}
 diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoderConfig.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonDecoderConfig.java
 new file mode 100644
@@ -728,10 +695,10 @@ index 0000000..9bab56f
 +}
 diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java
 new file mode 100644
-index 0000000..102758d
+index 0000000..c55e502
 --- /dev/null
 +++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoder.java
-@@ -0,0 +1,293 @@
+@@ -0,0 +1,388 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -751,8 +718,10 @@ index 0000000..102758d
 +import com.amazon.ion.IonWriter;
 +import com.amazon.ion.Timestamp;
 +import com.google.common.collect.ImmutableList;
++import io.trino.hive.formats.ion.IonEncoderConfig.SerializeNull;
 +import io.trino.hive.formats.line.Column;
 +import io.trino.spi.Page;
++import io.trino.spi.TrinoException;
 +import io.trino.spi.block.Block;
 +import io.trino.spi.block.SqlMap;
 +import io.trino.spi.block.SqlRow;
@@ -778,55 +747,74 @@ index 0000000..102758d
 +
 +import java.io.IOException;
 +import java.math.BigDecimal;
-+import java.math.RoundingMode;
 +import java.nio.charset.StandardCharsets;
 +import java.time.LocalDate;
-+import java.time.ZoneId;
-+import java.util.Date;
 +import java.util.List;
 +import java.util.Optional;
 +import java.util.function.IntFunction;
++import java.util.function.Supplier;
 +
-+import static com.google.common.base.Preconditions.checkArgument;
++import static java.lang.Math.floorDiv;
++import static java.util.Objects.requireNonNull;
 +
 +/**
-+ * An IonEncoder encodes Pages of trino data to an IonWriter.
++ * An IonEncoder encodes Pages of trino data to an IonWriter, writing values as the Ion Hive SerDe
++ * writes them.
 + */
 +public class IonEncoder
 +{
++    private static final String OBJECT_INSPECTOR_PACKAGE = "org.apache.hadoop.hive.serde2.objectinspector.primitive.";
++
 +    private final RowEncoder rowEncoder;
 +
 +    public IonEncoder(List<Column> columns)
 +    {
++        this(columns, IonEncoderConfig.DEFAULT);
++    }
++
++    public IonEncoder(List<Column> columns, IonEncoderConfig config)
++    {
++        requireNonNull(config, "config is null");
 +        rowEncoder = RowEncoder.forFields(columns.stream()
 +                .map(c -> new RowType.Field(Optional.of(c.name()), c.type()))
-+                .toList());
++                .toList(), config);
 +    }
 +
 +    /**
-+     * Encode the page of data to the IonWriter.
-+     * <br>
-+     * IonWriter.flush() will be called after the page is written.
++     * Encode the page of data, each row with a new IonWriter that is closed after it: the SerDe
++     * writes each row as an Ion stream of its own, with no separator between text rows.
 +     */
-+    public void encode(IonWriter writer, Page page)
++    public void encode(Supplier<IonWriter> writers, Page page)
 +            throws IOException
 +    {
 +        for (int i = 0; i < page.getPositionCount(); i++) {
-+            rowEncoder.encodeStruct(writer, page::getBlock, i);
++            try (IonWriter writer = writers.get()) {
++                rowEncoder.encodeStruct(writer, page::getBlock, i);
++            }
 +        }
-+        // todo: consider decoupling ion writer flushes from page sizes.
-+        writer.flush();
 +    }
 +
++    /**
++     * Writes a value that is not NULL.
++     */
 +    private interface BlockEncoder
 +    {
 +        void encode(IonWriter writer, Block block, int position)
 +                throws IOException;
 +    }
 +
-+    private static BlockEncoder encoderForType(Type type)
++    /**
++     * Writes the NULL element of a list.
++     */
++    private interface NullElementEncoder
 +    {
-+        BlockEncoder encoder = switch (type) {
++        void encode(IonWriter writer)
++                throws IOException;
++    }
++
++    private static BlockEncoder encoderForType(Type type, IonEncoderConfig config)
++    {
++        return switch (type) {
 +            case TinyintType _ -> BYTE_ENCODER;
 +            case SmallintType _ -> SHORT_ENCODER;
 +            case IntegerType _ -> INT_ENCODER;
@@ -838,47 +826,93 @@ index 0000000..102758d
 +            case VarcharType _, CharType _ -> STRING_ENCODER;
 +            case DateType _ -> DATE_ENCODER;
 +            case DecimalType t -> decimalEncoder(t);
-+            case TimestampType t -> timestampEncoder(t);
++            case TimestampType t -> timestampEncoder(t, config.timestampOffsetMinutes());
 +            case RowType t -> {
-+                RowEncoder rowEncoder = RowEncoder.forFields(t.getFields());
++                RowEncoder rowEncoder = RowEncoder.forFields(t.getFields(), config);
 +                yield (writer, block, position) -> {
 +                    SqlRow row = t.getObject(block, position);
 +                    rowEncoder.encodeStruct(writer, row::getRawFieldBlock, row.getRawIndex());
 +                };
 +            }
-+            case MapType t -> new MapEncoder(t, t.getKeyType(), encoderForType(t.getValueType()));
-+            case ArrayType t -> new ArrayEncoder(t, encoderForType(t.getElementType()));
++            case MapType t -> new MapEncoder(t, encoderForType(t.getValueType(), config), config.serializeNull());
++            case ArrayType t -> new ArrayEncoder(t, encoderForType(t.getElementType(), config), nullElementEncoder(t.getElementType(), config));
 +            default -> throw new IllegalArgumentException(String.format("Unsupported type: %s", type));
 +        };
-+        return wrapEncoder(encoder);
 +    }
 +
-+    private static BlockEncoder wrapEncoder(BlockEncoder encoder)
++    /**
++     * The SerDe writes a NULL struct in a list as a struct whose fields are all NULL, and a NULL list
++     * as an empty list. It writes a typed null for a string or a blob, and fails on a NULL of any
++     * other type, for which this writes a typed null.
++     */
++    private static NullElementEncoder nullElementEncoder(Type elementType, IonEncoderConfig config)
 +    {
-+        return (writer, block, position) ->
-+        {
-+            if (block.isNull(position)) {
-+                writer.writeNull();
-+            }
-+            else {
-+                encoder.encode(writer, block, position);
++        return switch (elementType) {
++            case RowType t -> RowEncoder.forFields(t.getFields(), config)::encodeNullStruct;
++            case ArrayType _ -> writer -> {
++                writer.stepIn(IonType.LIST);
++                writer.stepOut();
++            };
++            default -> {
++                IonType ionType = ionType(elementType);
++                yield writer -> writer.writeNull(ionType);
 +            }
 +        };
 +    }
 +
-+    private record RowEncoder(List<String> fieldNames, List<BlockEncoder> fieldEncoders)
++    /**
++     * The Ion type of a typed null of the type.
++     */
++    private static IonType ionType(Type type)
 +    {
-+        private static RowEncoder forFields(List<RowType.Field> fields)
++        return switch (type) {
++            case TinyintType _, SmallintType _, IntegerType _, BigintType _ -> IonType.INT;
++            case RealType _, DoubleType _ -> IonType.FLOAT;
++            case DecimalType _ -> IonType.DECIMAL;
++            case VarcharType _, CharType _ -> IonType.STRING;
++            case BooleanType _ -> IonType.BOOL;
++            case DateType _, TimestampType _ -> IonType.TIMESTAMP;
++            case VarbinaryType _ -> IonType.BLOB;
++            case ArrayType _ -> IonType.LIST;
++            case RowType _, MapType _ -> IonType.STRUCT;
++            default -> throw new IllegalArgumentException(String.format("Unsupported type: %s", type));
++        };
++    }
++
++    /**
++     * Writes the NULL value of a struct field or a map entry as ion.serialize_null says.
++     */
++    private static void encodeNullField(IonWriter writer, String name, Type type, SerializeNull serializeNull)
++            throws IOException
++    {
++        switch (serializeNull) {
++            case OMIT -> {}
++            case UNTYPED -> {
++                writer.setFieldName(name);
++                writer.writeNull();
++            }
++            case TYPED -> {
++                writer.setFieldName(name);
++                writer.writeNull(ionType(type));
++            }
++        }
++    }
++
++    private record RowEncoder(List<String> fieldNames, List<Type> fieldTypes, List<BlockEncoder> fieldEncoders, SerializeNull serializeNull)
++    {
++        private static RowEncoder forFields(List<RowType.Field> fields, IonEncoderConfig config)
 +        {
 +            ImmutableList.Builder<String> fieldNamesBuilder = ImmutableList.builder();
++            ImmutableList.Builder<Type> fieldTypesBuilder = ImmutableList.builder();
 +            ImmutableList.Builder<BlockEncoder> fieldEncodersBuilder = ImmutableList.builder();
 +
 +            for (RowType.Field field : fields) {
 +                fieldNamesBuilder.add(field.getName().get());
-+                fieldEncodersBuilder.add(encoderForType(field.getType()));
++                fieldTypesBuilder.add(field.getType());
++                fieldEncodersBuilder.add(encoderForType(field.getType(), config));
 +            }
 +
-+            return new RowEncoder(fieldNamesBuilder.build(), fieldEncodersBuilder.build());
++            return new RowEncoder(fieldNamesBuilder.build(), fieldTypesBuilder.build(), fieldEncodersBuilder.build(), config.serializeNull());
 +        }
 +
 +        private void encodeStruct(IonWriter writer, IntFunction<Block> blockSelector, int position)
@@ -886,38 +920,40 @@ index 0000000..102758d
 +        {
 +            writer.stepIn(IonType.STRUCT);
 +            for (int i = 0; i < fieldEncoders.size(); i++) {
-+                // fields are omitted by default, as was true in the hive serde.
-+                // there is an unimplemented hive legacy property of `ion.serialize_null`
-+                // that could be used to specify typed or untyped ion nulls instead.
 +                Block block = blockSelector.apply(i);
 +                if (block.isNull(position)) {
++                    encodeNullField(writer, fieldNames.get(i), fieldTypes.get(i), serializeNull);
 +                    continue;
 +                }
 +                writer.setFieldName(fieldNames.get(i));
-+                fieldEncoders.get(i)
-+                        .encode(writer, block, position);
++                fieldEncoders.get(i).encode(writer, block, position);
++            }
++            writer.stepOut();
++        }
++
++        private void encodeNullStruct(IonWriter writer)
++                throws IOException
++        {
++            writer.stepIn(IonType.STRUCT);
++            for (int i = 0; i < fieldNames.size(); i++) {
++                encodeNullField(writer, fieldNames.get(i), fieldTypes.get(i), serializeNull);
 +            }
 +            writer.stepOut();
 +        }
 +    }
 +
-+    private record MapEncoder(MapType mapType, Type keyType, BlockEncoder encoder)
++    private record MapEncoder(MapType mapType, BlockEncoder valueEncoder, SerializeNull serializeNull)
 +            implements BlockEncoder
 +    {
-+        public MapEncoder(MapType mapType, Type keyType, BlockEncoder encoder)
-+        {
-+            this.mapType = mapType;
-+            if (!(keyType instanceof VarcharType _ || keyType instanceof CharType _)) {
-+                throw new UnsupportedOperationException("Unsupported map key type: " + keyType);
-+            }
-+            this.keyType = keyType;
-+            this.encoder = encoder;
-+        }
-+
 +        @Override
 +        public void encode(IonWriter writer, Block block, int position)
 +                throws IOException
 +        {
++            Type keyType = mapType.getKeyType();
++            if (!(keyType instanceof VarcharType)) {
++                // the SerDe casts the inspector of the map's keys to a string inspector
++                throw IonSerDeErrors.castError(OBJECT_INSPECTOR_PACKAGE + objectInspector(keyType), OBJECT_INSPECTOR_PACKAGE + "StringObjectInspector");
++            }
 +            SqlMap sqlMap = mapType.getObject(block, position);
 +            int rawOffset = sqlMap.getRawOffset();
 +            Block rawKeyBlock = sqlMap.getRawKeyBlock();
@@ -925,15 +961,41 @@ index 0000000..102758d
 +
 +            writer.stepIn(IonType.STRUCT);
 +            for (int i = 0; i < sqlMap.getSize(); i++) {
-+                checkArgument(!rawKeyBlock.isNull(rawOffset + i), "map key is null");
-+                writer.setFieldName(VarcharType.VARCHAR.getSlice(rawKeyBlock, rawOffset + i).toString(StandardCharsets.UTF_8));
-+                encoder.encode(writer, rawValueBlock, rawOffset + i);
++                String key = VarcharType.VARCHAR.getSlice(rawKeyBlock, rawOffset + i).toString(StandardCharsets.UTF_8);
++                if (rawValueBlock.isNull(rawOffset + i)) {
++                    encodeNullField(writer, key, mapType.getValueType(), serializeNull);
++                    continue;
++                }
++                writer.setFieldName(key);
++                valueEncoder.encode(writer, rawValueBlock, rawOffset + i);
 +            }
 +            writer.stepOut();
 +        }
 +    }
 +
-+    private record ArrayEncoder(ArrayType arrayType, BlockEncoder elementEncoder)
++    /**
++     * The simple name of the object inspector Hive gives a map key of the type.
++     */
++    private static String objectInspector(Type type)
++    {
++        return switch (type) {
++            case TinyintType _ -> "JavaByteObjectInspector";
++            case SmallintType _ -> "JavaShortObjectInspector";
++            case IntegerType _ -> "JavaIntObjectInspector";
++            case BigintType _ -> "JavaLongObjectInspector";
++            case BooleanType _ -> "JavaBooleanObjectInspector";
++            case RealType _ -> "JavaFloatObjectInspector";
++            case DoubleType _ -> "JavaDoubleObjectInspector";
++            case DecimalType _ -> "JavaHiveDecimalObjectInspector";
++            case DateType _ -> "JavaDateObjectInspector";
++            case TimestampType _ -> "JavaTimestampObjectInspector";
++            case VarbinaryType _ -> "JavaBinaryObjectInspector";
++            case CharType _ -> "WritableHiveCharObjectInspector";
++            default -> throw new TrinoException(IonSerDeErrors.Code.GENERIC_INTERNAL_ERROR, "Unsupported map key type: " + type);
++        };
++    }
++
++    private record ArrayEncoder(ArrayType arrayType, BlockEncoder elementEncoder, NullElementEncoder nullElementEncoder)
 +            implements BlockEncoder
 +    {
 +        @Override
@@ -943,51 +1005,51 @@ index 0000000..102758d
 +            writer.stepIn(IonType.LIST);
 +            Block elementBlock = arrayType.getObject(block, position);
 +            for (int i = 0; i < elementBlock.getPositionCount(); i++) {
++                if (elementBlock.isNull(i)) {
++                    nullElementEncoder.encode(writer);
++                    continue;
++                }
 +                elementEncoder.encode(writer, elementBlock, i);
 +            }
 +            writer.stepOut();
 +        }
 +    }
 +
-+    private static BlockEncoder timestampEncoder(TimestampType type)
++    /**
++     * The SerDe writes a timestamp as its epoch milliseconds, any finer fraction truncated, at the
++     * offset ion.timestamp.serialization_offset gives.
++     */
++    private static BlockEncoder timestampEncoder(TimestampType type, int offsetMinutes)
 +    {
 +        if (type.isShort()) {
 +            return (writer, block, position) -> {
 +                long epochMicros = type.getLong(block, position);
-+                BigDecimal decimalMillis = BigDecimal.valueOf(epochMicros)
-+                        .movePointLeft(3)
-+                        .setScale(type.getPrecision() - 3, RoundingMode.UNNECESSARY);
-+
-+                writer.writeTimestamp(Timestamp.forMillis(decimalMillis, 0));
++                writer.writeTimestamp(Timestamp.forMillis(floorDiv(epochMicros, 1000), offsetMinutes));
 +            };
 +        }
-+        else {
-+            return (writer, block, position) -> {
-+                LongTimestamp longTimestamp = (LongTimestamp) type.getObject(block, position);
-+                BigDecimal picosOfMicros = BigDecimal.valueOf(longTimestamp.getPicosOfMicro())
-+                        .movePointLeft(9);
-+                BigDecimal decimalMillis = BigDecimal.valueOf(longTimestamp.getEpochMicros())
-+                        .movePointLeft(3)
-+                        .add(picosOfMicros)
-+                        .setScale(type.getPrecision() - 3, RoundingMode.UNNECESSARY);
-+
-+                writer.writeTimestamp(Timestamp.forMillis(decimalMillis, 0));
-+            };
-+        }
++        return (writer, block, position) -> {
++            LongTimestamp longTimestamp = (LongTimestamp) type.getObject(block, position);
++            writer.writeTimestamp(Timestamp.forMillis(floorDiv(longTimestamp.getEpochMicros(), 1000), offsetMinutes));
++        };
 +    }
 +
++    /**
++     * The SerDe writes a decimal as Hive holds it: without trailing zeros in its fraction.
++     */
 +    private static BlockEncoder decimalEncoder(DecimalType type)
 +    {
 +        if (type.isShort()) {
-+            return (writer, block, position) -> {
-+                writer.writeDecimal(BigDecimal.valueOf(type.getLong(block, position), type.getScale()));
-+            };
++            return (writer, block, position) ->
++                    writer.writeDecimal(hiveDecimal(BigDecimal.valueOf(type.getLong(block, position), type.getScale())));
 +        }
-+        else {
-+            return (writer, block, position) -> {
-+                writer.writeDecimal(new BigDecimal(((Int128) type.getObject(block, position)).toBigInteger(), type.getScale()));
-+            };
-+        }
++        return (writer, block, position) ->
++                writer.writeDecimal(hiveDecimal(new BigDecimal(((Int128) type.getObject(block, position)).toBigInteger(), type.getScale())));
++    }
++
++    private static BigDecimal hiveDecimal(BigDecimal value)
++    {
++        BigDecimal stripped = value.stripTrailingZeros();
++        return stripped.scale() < 0 ? stripped.setScale(0) : stripped;
 +    }
 +
 +    private static final BlockEncoder BYTE_ENCODER = (writer, block, position) ->
@@ -1017,13 +1079,138 @@ index 0000000..102758d
 +    private static final BlockEncoder DOUBLE_ENCODER = (writer, block, position) ->
 +            writer.writeFloat(DoubleType.DOUBLE.getDouble(block, position));
 +
-+    private static final BlockEncoder DATE_ENCODER = (writer, block, position) ->
-+            writer.writeTimestamp(
-+                    Timestamp.forDateZ(
-+                            Date.from(
-+                                    LocalDate.ofEpochDay(DateType.DATE.getLong(block, position))
-+                                            .atStartOfDay(ZoneId.of("UTC"))
-+                                            .toInstant())));
++    /**
++     * The SerDe writes a date as a timestamp of day precision, whatever the offset.
++     */
++    private static final BlockEncoder DATE_ENCODER = (writer, block, position) -> {
++        LocalDate date = LocalDate.ofEpochDay(DateType.DATE.getLong(block, position));
++        writer.writeTimestamp(Timestamp.forDay(date.getYear(), date.getMonthValue(), date.getDayOfMonth()));
++    };
++}
+diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoderConfig.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoderConfig.java
+new file mode 100644
+index 0000000..f95ffc3
+--- /dev/null
++++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonEncoderConfig.java
+@@ -0,0 +1,42 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package io.trino.hive.formats.ion;
++
++import static java.util.Objects.requireNonNull;
++
++/**
++ * How the IonEncoder writes values, from the SerDe's writer properties.
++ *
++ * @param serializeNull how a NULL in a struct field or a map value is written
++ * @param timestampOffsetMinutes the offset timestamps are written in, in minutes
++ */
++public record IonEncoderConfig(SerializeNull serializeNull, int timestampOffsetMinutes)
++{
++    public static final IonEncoderConfig DEFAULT = new IonEncoderConfig(SerializeNull.OMIT, 0);
++
++    public IonEncoderConfig
++    {
++        requireNonNull(serializeNull, "serializeNull is null");
++    }
++
++    /**
++     * The SerDe's ion.serialize_null values.
++     */
++    public enum SerializeNull
++    {
++        OMIT,
++        UNTYPED,
++        TYPED,
++    }
++}
+diff --git a/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonSerDeErrors.java b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonSerDeErrors.java
+new file mode 100644
+index 0000000..2c78237
+--- /dev/null
++++ b/lib/trino-hive-formats/src/main/java/io/trino/hive/formats/ion/IonSerDeErrors.java
+@@ -0,0 +1,71 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package io.trino.hive.formats.ion;
++
++import io.trino.spi.ErrorCode;
++import io.trino.spi.ErrorCodeSupplier;
++import io.trino.spi.ErrorType;
++import io.trino.spi.StandardErrorCode;
++import io.trino.spi.TrinoException;
++
++/**
++ * The errors Athena reports for the Ion Hive SerDe: HIVE_BAD_DATA for a value that fails a check,
++ * and GENERIC_INTERNAL_ERROR for an exception the SerDe throws, both counted as user errors.
++ */
++public final class IonSerDeErrors
++{
++    private IonSerDeErrors() {}
++
++    public enum Code
++            implements ErrorCodeSupplier
++    {
++        // the code of HiveErrorCode.HIVE_BAD_DATA, which this library cannot use
++        HIVE_BAD_DATA(0x0100_0000 + 7),
++        GENERIC_INTERNAL_ERROR(StandardErrorCode.GENERIC_INTERNAL_ERROR.toErrorCode().getCode());
++
++        private final ErrorCode errorCode;
++
++        Code(int code)
++        {
++            errorCode = new ErrorCode(code, name(), ErrorType.EXTERNAL);
++        }
++
++        @Override
++        public ErrorCode toErrorCode()
++        {
++            return errorCode;
++        }
++    }
++
++    /**
++     * A ClassCastException of the SerDe, as the JVM words it for two classes of the plugin's class loader.
++     */
++    public static TrinoException castError(String valueClass, String targetClass)
++    {
++        ClassLoader loader = IonSerDeErrors.class.getClassLoader();
++        String loaderDescription = loader.getClass().getName() + " @" + Integer.toHexString(System.identityHashCode(loader));
++        return new TrinoException(
++                Code.GENERIC_INTERNAL_ERROR,
++                "class %s cannot be cast to class %s (%s and %s are in unnamed module of loader %s)"
++                        .formatted(valueClass, targetClass, valueClass, targetClass, loaderDescription));
++    }
++
++    /**
++     * An IllegalArgumentException of the SerDe, such as one for a SerDe property value it cannot read.
++     */
++    public static TrinoException invalidArgument(String message)
++    {
++        return new TrinoException(Code.GENERIC_INTERNAL_ERROR, message);
++    }
 +}
 diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveFormatsModule.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveFormatsModule.java
 index 01c2344..0e6be88 100644
@@ -1091,10 +1278,18 @@ index 8140a9b..93c4dec 100644
      }
  
 diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveWriterFactory.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveWriterFactory.java
-index af5ad51..3c63793 100644
+index af5ad51..1084de1 100644
 --- a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveWriterFactory.java
 +++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/HiveWriterFactory.java
-@@ -65,6 +65,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
+@@ -35,6 +35,7 @@ import io.trino.plugin.hive.HiveSessionProperties.InsertExistingPartitionsBehavi
+ import io.trino.plugin.hive.LocationService.WriteInfo;
+ import io.trino.plugin.hive.PartitionUpdate.UpdateMode;
+ import io.trino.plugin.hive.acid.AcidTransaction;
++import io.trino.plugin.hive.ion.IonSerDeProperties;
+ import io.trino.plugin.hive.metastore.HivePageSinkMetadataProvider;
+ import io.trino.plugin.hive.orc.OrcFileWriterFactory;
+ import io.trino.plugin.hive.util.HiveWriteUtils;
+@@ -65,6 +66,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
  import static com.google.common.collect.ImmutableMap.toImmutableMap;
  import static com.google.common.collect.MoreCollectors.onlyElement;
  import static io.trino.hive.formats.HiveClassNames.HIVE_IGNORE_KEY_OUTPUT_FORMAT_CLASS;
@@ -1102,7 +1297,20 @@ index af5ad51..3c63793 100644
  import static io.trino.metastore.AcidOperation.CREATE_TABLE;
  import static io.trino.metastore.Partitions.makePartName;
  import static io.trino.plugin.hive.HiveCompressionCodecs.selectCompressionCodec;
-@@ -678,11 +679,13 @@ public class HiveWriterFactory
+@@ -428,7 +430,11 @@ public class HiveWriterFactory
+             path = path.appendPath(subdir).appendPath(nameFormat.formatted(bucketToUse));
+         }
+         else {
+-            path = path.appendPath(computeFileName(bucketNumber) + getFileExtension(compressionCodec, outputStorageFormat));
++            // Ion files are compressed as the table's write.compression says
++            String fileExtension = ION_OUTPUT_FORMAT.equals(outputStorageFormat.getOutputFormat())
++                    ? IonSerDeProperties.getCompressionKind(schema, compressionCodec).map(CompressionKind::getFileExtension).orElse("")
++                    : getFileExtension(compressionCodec, outputStorageFormat);
++            path = path.appendPath(computeFileName(bucketNumber) + fileExtension);
+         }
+ 
+         boolean useAcidSchema = isCreateTransactionalTable || (table != null && isFullAcidTable(table.getParameters()));
+@@ -678,11 +684,13 @@ public class HiveWriterFactory
  
      public static String getFileExtension(HiveCompressionCodec compression, StorageFormat format)
      {
@@ -1123,10 +1331,10 @@ index af5ad51..3c63793 100644
      @VisibleForTesting
 diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriter.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriter.java
 new file mode 100644
-index 0000000..cb0749a
+index 0000000..94c9da2
 --- /dev/null
 +++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriter.java
-@@ -0,0 +1,135 @@
+@@ -0,0 +1,165 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -1142,11 +1350,11 @@ index 0000000..cb0749a
 + */
 +package io.trino.plugin.hive.ion;
 +
-+import com.amazon.ion.IonWriter;
 +import com.google.common.io.CountingOutputStream;
 +import io.trino.filesystem.TrinoOutputFile;
 +import io.trino.hive.formats.compression.CompressionKind;
 +import io.trino.hive.formats.ion.IonEncoder;
++import io.trino.hive.formats.ion.IonEncoderConfig;
 +import io.trino.hive.formats.line.Column;
 +import io.trino.memory.context.AggregatedMemoryContext;
 +import io.trino.plugin.hive.FileWriter;
@@ -1155,6 +1363,7 @@ index 0000000..cb0749a
 +import io.trino.spi.TrinoException;
 +
 +import java.io.Closeable;
++import java.io.FilterOutputStream;
 +import java.io.IOException;
 +import java.io.OutputStream;
 +import java.util.List;
@@ -1171,8 +1380,9 @@ index 0000000..cb0749a
 +    private final AggregatedMemoryContext outputStreamMemoryContext;
 +    private final RollbackAction rollbackAction;
 +    private final IonEncoder pageEncoder;
-+    private final IonWriter writer;
++    private final IonSerDeProperties.IonEncoding ionEncoding;
 +    private final OutputStream outputStream;
++    private final OutputStream rowOutputStream;
 +    private final LongSupplier bytesWritten;
 +
 +    public IonFileWriter(
@@ -1180,6 +1390,7 @@ index 0000000..cb0749a
 +            RollbackAction rollbackAction,
 +            Optional<CompressionKind> compressionKind,
 +            IonSerDeProperties.IonEncoding ionEncoding,
++            IonEncoderConfig encoderConfig,
 +            List<Column> columns)
 +            throws IOException
 +    {
@@ -1200,8 +1411,9 @@ index 0000000..cb0749a
 +
 +        this.bytesWritten = countingOutputStream::getCount;
 +        this.rollbackAction = rollbackAction;
-+        this.writer = ionEncoding.createWriter(this.outputStream);
-+        this.pageEncoder = new IonEncoder(columns);
++        this.ionEncoding = ionEncoding;
++        this.rowOutputStream = new RowOutputStream(outputStream);
++        this.pageEncoder = new IonEncoder(columns, encoderConfig);
 +    }
 +
 +    @Override
@@ -1220,7 +1432,7 @@ index 0000000..cb0749a
 +    public RollbackAction commit()
 +    {
 +        try {
-+            writer.close();
++            outputStream.close();
 +        }
 +        catch (Exception e) {
 +            try {
@@ -1238,7 +1450,7 @@ index 0000000..cb0749a
 +    public void rollback()
 +    {
 +        try (Closeable _ = rollbackAction::run) {
-+            writer.close();
++            outputStream.close();
 +        }
 +        catch (IOException e) {
 +            throw new TrinoException(HIVE_WRITER_CLOSE_ERROR, "Error rolling back write to Ion file", e);
@@ -1255,19 +1467,45 @@ index 0000000..cb0749a
 +    public void appendRows(Page page)
 +    {
 +        try {
-+            pageEncoder.encode(writer, page);
++            pageEncoder.encode(() -> ionEncoding.createWriter(rowOutputStream), page);
 +        }
 +        catch (IOException e) {
 +            throw new TrinoException(HIVE_WRITER_DATA_ERROR, e);
 +        }
 +    }
++
++    /**
++     * The file's stream as the writer of a row sees it: closing the writer only flushes it.
++     */
++    private static final class RowOutputStream
++            extends FilterOutputStream
++    {
++        private RowOutputStream(OutputStream out)
++        {
++            super(out);
++        }
++
++        @Override
++        public void write(byte[] bytes, int offset, int length)
++                throws IOException
++        {
++            out.write(bytes, offset, length);
++        }
++
++        @Override
++        public void close()
++                throws IOException
++        {
++            flush();
++        }
++    }
 +}
 diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriterFactory.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriterFactory.java
 new file mode 100644
-index 0000000..ec30a37
+index 0000000..0431187
 --- /dev/null
 +++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonFileWriterFactory.java
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,114 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -1288,6 +1526,8 @@ index 0000000..ec30a37
 +import io.trino.filesystem.TrinoFileSystem;
 +import io.trino.filesystem.TrinoFileSystemFactory;
 +import io.trino.filesystem.TrinoOutputFile;
++import io.trino.hive.formats.compression.CompressionKind;
++import io.trino.hive.formats.ion.IonEncoderConfig;
 +import io.trino.hive.formats.line.Column;
 +import io.trino.metastore.StorageFormat;
 +import io.trino.plugin.hive.FileWriter;
@@ -1347,7 +1587,10 @@ index 0000000..ec30a37
 +            return Optional.empty();
 +        }
 +
-+        IonSerDeProperties.validateWriterPropertySupport(schema);
++        // read when a write opens its first file, so a write of no rows succeeds whatever they hold
++        Optional<CompressionKind> compressionKind = IonSerDeProperties.getCompressionKind(schema, compressionCodec);
++        IonSerDeProperties.IonEncoding ionEncoding = IonSerDeProperties.getIonEncoding(schema);
++        IonEncoderConfig encoderConfig = IonSerDeProperties.encoderConfigFor(schema);
 +
 +        try {
 +            TrinoFileSystem fileSystem = fileSystemFactory.create(session);
@@ -1367,8 +1610,9 @@ index 0000000..ec30a37
 +            return Optional.of(new IonFileWriter(
 +                    outputFile,
 +                    rollbackAction,
-+                    compressionCodec.getHiveCompressionKind(),
-+                    IonSerDeProperties.getIonEncoding(schema),
++                    compressionKind,
++                    ionEncoding,
++                    encoderConfig,
 +                    columns));
 +        }
 +        catch (Exception e) {
@@ -1675,10 +1919,10 @@ index 0000000..894266b
 +}
 diff --git a/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonSerDeProperties.java b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonSerDeProperties.java
 new file mode 100644
-index 0000000..a07a18b
+index 0000000..6638c69
 --- /dev/null
 +++ b/plugin/trino-hive/src/main/java/io/trino/plugin/hive/ion/IonSerDeProperties.java
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,232 @@
 +/*
 + * Licensed under the Apache License, Version 2.0 (the "License");
 + * you may not use this file except in compliance with the License.
@@ -1698,15 +1942,19 @@ index 0000000..a07a18b
 +import com.amazon.ion.system.IonBinaryWriterBuilder;
 +import com.amazon.ion.system.IonTextWriterBuilder;
 +import com.google.common.collect.ImmutableMap;
-+import io.airlift.log.Logger;
++import io.trino.hive.formats.compression.CompressionKind;
 +import io.trino.hive.formats.ion.IonDecoderConfig;
++import io.trino.hive.formats.ion.IonEncoderConfig;
++import io.trino.hive.formats.ion.IonEncoderConfig.SerializeNull;
++import io.trino.hive.formats.ion.IonSerDeErrors;
++import io.trino.plugin.hive.HiveCompressionCodec;
 +import io.trino.spi.TrinoException;
 +
 +import java.io.OutputStream;
-+import java.util.LinkedList;
 +import java.util.List;
 +import java.util.Locale;
 +import java.util.Map;
++import java.util.Optional;
 +import java.util.regex.Matcher;
 +import java.util.regex.Pattern;
 +
@@ -1718,8 +1966,6 @@ index 0000000..a07a18b
 + */
 +public final class IonSerDeProperties
 +{
-+    private static final Logger log = Logger.get(IonSerDeProperties.class);
-+
 +    // Reader properties
 +    public static final String PATH_EXTRACTOR_PROPERTY = "ion\\.(.+)\\.path_extractor";
 +    public static final String PATH_EXTRACTION_CASE_SENSITIVITY = "ion.path_extractor.case_sensitive";
@@ -1736,21 +1982,11 @@ index 0000000..a07a18b
 +
 +    // Writer properties
 +    public static final String ION_ENCODING_PROPERTY = "ion.encoding";
-+    public static final String TEXT_ENCODING = "text";
-+    public static final String BINARY_ENCODING = "binary";
-+
-+    // unimplemented writer properties
 +    public static final String ION_TIMESTAMP_OFFSET_PROPERTY = "ion.timestamp.serialization_offset";
-+    public static final String ION_TIMESTAMP_OFFSET_DEFAULT = "Z";
-+    public static final String ION_SERIALIZE_NULL_AS_PROPERTY = "ion.serialize_null";
-+    public static final String ION_SERIALIZE_NULL_AS_DEFAULT = "OMIT";
-+    public static final String ION_SERIALIZE_NULL_AS_COLUMN_PROPERTY = "ion.\\w+.serialize_as";
-+
-+    private static final Pattern unsupportedWriterPropertiesRegex = Pattern.compile(ION_SERIALIZE_NULL_AS_COLUMN_PROPERTY);
-+
-+    private static final Map<String, String> defaultOnlyWriterProperties = Map.of(
-+            ION_TIMESTAMP_OFFSET_PROPERTY, ION_TIMESTAMP_OFFSET_DEFAULT,
-+            ION_SERIALIZE_NULL_AS_PROPERTY, ION_SERIALIZE_NULL_AS_DEFAULT);
++    public static final String ION_SERIALIZE_NULL_PROPERTY = "ion.serialize_null";
++    // the table property Athena keeps the compression of the files it writes in
++    public static final String WRITE_COMPRESSION_PROPERTY = "write.compression";
++    private static final String SERDE_CONFIGURATION_PACKAGE = "com.amazon.ionhiveserde.configuration.";
 +
 +    private IonSerDeProperties() {}
 +
@@ -1818,39 +2054,104 @@ index 0000000..a07a18b
 +        public abstract IonWriter createWriter(OutputStream outputStream);
 +    }
 +
++    /**
++     * The encoding the SerDe writes in: its IonEncoding constant named by ion.encoding.
++     */
 +    public static IonEncoding getIonEncoding(Map<String, String> schema)
 +    {
-+        String encodingStr = schema.getOrDefault(ION_ENCODING_PROPERTY, BINARY_ENCODING);
-+        return switch (encodingStr.toLowerCase(Locale.ROOT)) {
-+            case TEXT_ENCODING -> IonEncoding.TEXT;
-+            case BINARY_ENCODING -> IonEncoding.BINARY;
-+            default -> throw new TrinoException(HIVE_UNSUPPORTED_FORMAT,
-+                    "Unsupported Ion encoding format: " + encodingStr);
++        String encoding = schema.get(ION_ENCODING_PROPERTY);
++        if (encoding == null) {
++            return IonEncoding.BINARY;
++        }
++        return switch (encoding) {
++            case "BINARY" -> IonEncoding.BINARY;
++            case "TEXT" -> IonEncoding.TEXT;
++            default -> throw noEnumConstant("IonEncoding", encoding);
 +        };
 +    }
 +
 +    /**
-+     * Checks that the writer properties starting with "ion." are supported.
-+     * Throws TrinoException if any are unsupported.
++     * How the SerDe writes nulls and timestamps, from ion.serialize_null, the name of a
++     * SerializeNullStrategy constant, and ion.timestamp.serialization_offset.
 +     */
-+    public static void validateWriterPropertySupport(Map<String, String> properties)
++    public static IonEncoderConfig encoderConfigFor(Map<String, String> schema)
 +    {
-+        List<String> errors = new LinkedList<>();
-+        for (Map.Entry<String, String> entry : properties.entrySet()) {
-+            String key = entry.getKey();
-+            String value = entry.getValue();
-+            if (!key.startsWith("ion.")) {
-+                continue;
-+            }
-+            String defaultValue = defaultOnlyWriterProperties.get(key);
-+            if ((defaultValue != null && !defaultValue.equals(value))
-+                    || unsupportedWriterPropertiesRegex.matcher(key).matches()) {
-+                log.error("Ion Table contains unsupported SerDe property: %s => %s", key, value);
-+                errors.add(String.format("%s = %s", key, value));
-+            }
++        String serializeNull = schema.get(ION_SERIALIZE_NULL_PROPERTY);
++        SerializeNull strategy = SerializeNull.OMIT;
++        if (serializeNull != null) {
++            strategy = switch (serializeNull) {
++                case "OMIT" -> SerializeNull.OMIT;
++                case "UNTYPED" -> SerializeNull.UNTYPED;
++                case "TYPED" -> SerializeNull.TYPED;
++                default -> throw noEnumConstant("SerializeNullStrategy", serializeNull);
++            };
 +        }
-+        if (!errors.isEmpty()) {
-+            throw new TrinoException(HIVE_UNSUPPORTED_FORMAT, "Ion Table contains unsupported SerDe properties: " + String.join(", ", errors));
++        String offset = schema.get(ION_TIMESTAMP_OFFSET_PROPERTY);
++        return new IonEncoderConfig(strategy, offset == null ? 0 : parseOffsetMinutes(offset));
++    }
++
++    /**
++     * Reads an offset as the SerDe does: Z, or [+|-]HH:MM, without a sign meaning a positive offset.
++     */
++    static int parseOffsetMinutes(String offset)
++    {
++        if (offset.equals("Z")) {
++            return 0;
 +        }
++        boolean signed = offset.startsWith("+") || offset.startsWith("-");
++        if (signed && offset.length() != 6) {
++            throw IonSerDeErrors.invalidArgument("wrong size for offset text, must be 6 characters when including the sign");
++        }
++        if (!signed && offset.length() != 5) {
++            throw IonSerDeErrors.invalidArgument("wrong size for offset text, must be 5 characters when not including the sign");
++        }
++        String text = signed ? offset.substring(1) : offset;
++        int hours = parseOffsetPart(text.substring(0, 2), "hours");
++        if (text.charAt(2) != ':') {
++            throw IonSerDeErrors.invalidArgument("missing : between hour and minute");
++        }
++        int minutes = parseOffsetPart(text.substring(3, 5), "minutes");
++        if (hours > 23) {
++            throw IonSerDeErrors.invalidArgument("offset text hours must be between 0 and 23 inclusive");
++        }
++        if (minutes > 59) {
++            throw IonSerDeErrors.invalidArgument("offset text minutes must be between 0 and 59 inclusive");
++        }
++        int sign = offset.startsWith("-") ? -1 : 1;
++        return sign * (hours * 60 + minutes);
++    }
++
++    private static int parseOffsetPart(String text, String part)
++    {
++        if (!text.chars().allMatch(Character::isDigit)) {
++            throw IonSerDeErrors.invalidArgument("offset text %s is not a number".formatted(part));
++        }
++        return Integer.parseInt(text);
++    }
++
++    private static TrinoException noEnumConstant(String enumName, String value)
++    {
++        return IonSerDeErrors.invalidArgument("No enum constant " + SERDE_CONFIGURATION_PACKAGE + enumName + "." + value);
++    }
++
++    /**
++     * The compression of the files Athena writes for the table: the codec its write.compression
++     * names, in any case, or the session's codec without one.
++     */
++    public static Optional<CompressionKind> getCompressionKind(Map<String, String> schema, HiveCompressionCodec sessionCodec)
++    {
++        String compression = schema.get(WRITE_COMPRESSION_PROPERTY);
++        if (compression == null) {
++            return sessionCodec.getHiveCompressionKind();
++        }
++        return switch (compression.toUpperCase(Locale.ROOT)) {
++            case "NONE" -> Optional.empty();
++            case "GZIP" -> Optional.of(CompressionKind.GZIP);
++            case "ZSTD" -> Optional.of(CompressionKind.ZSTD);
++            case "SNAPPY" -> Optional.of(CompressionKind.SNAPPY);
++            case "BZIP2" -> Optional.of(CompressionKind.BZIP2);
++            case "LZ4" -> Optional.of(CompressionKind.LZ4);
++            default -> throw new TrinoException(HIVE_UNSUPPORTED_FORMAT, "Failed to load compression codec: " + compression);
++        };
 +    }
 +}

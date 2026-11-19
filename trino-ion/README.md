@@ -17,13 +17,13 @@ The jars also need these two jars in `plugin/hive/`, from Maven Central:
 
 In the tarball, the two jars in `plugin/hive/` are hard links to the ones in `plugin/delta-lake/`, `plugin/hudi/`, `plugin/iceberg/` and `plugin/lakehouse/`. Delete the old file before you copy the new one, or write a new file and rename it over the old one. Copying over the old file changes the other plugins too.
 
-With the jars installed, the Hive connector reads tables with the Ion SerDe, in text or binary Ion, compressed or not. It reads them as Amazon Athena reads them through the Ion Hive SerDe; see [Reading as Athena does](#reading-as-athena-does). It writes Ion tables, such as those created with `format = 'ION'`, as binary Ion, or as text Ion if the table's SerDe property `ion.encoding` is `TEXT`. Writes fail with `HIVE_UNSUPPORTED_FORMAT` if the table sets `ion.timestamp.serialization_offset` or `ion.serialize_null` to a non-default value, or sets any `ion.<column>.serialize_as`. Reads ignore these writer properties, as the SerDe does.
+With the jars installed, the Hive connector reads tables with the Ion SerDe, in text or binary Ion, compressed or not. It reads them as Amazon Athena reads them through the Ion Hive SerDe; see [Reading as Athena does](#reading-as-athena-does). It writes Ion tables, such as those created with `format = 'ION'`, as Athena writes them through the SerDe; see [Writing as Athena does](#writing-as-athena-does). Reads ignore the writer properties, as the SerDe does.
 
 ## What the patch changes
 
 New classes from the upstream PR:
 
-- `io.trino.hive.formats.ion` in `trino-hive-formats`: `IonDecoder`, `IonDecoderConfig` and `IonEncoder`.
+- `io.trino.hive.formats.ion` in `trino-hive-formats`: `IonDecoder`, `IonDecoderConfig` and `IonEncoder`. `IonEncoderConfig` and `IonSerDeErrors` are this repository's.
 - `io.trino.plugin.hive.ion` in `trino-hive`: `IonPageSource`, `IonPageSourceFactory`, `IonFileWriter`, `IonFileWriterFactory` and `IonSerDeProperties`.
 
 Changes to existing classes:
@@ -31,7 +31,7 @@ Changes to existing classes:
 - `HiveClassNames`: the Ion SerDe, input format and output format class names.
 - `HiveStorageFormat`: an `ION` format, which isn't splittable.
 - `HiveFormatsModule`: binds the Ion page source and file writer factories.
-- `HiveWriterFactory.getFileExtension`: compressed Ion files get the compression's extension, as text files do.
+- `HiveWriterFactory`: compressed Ion files get the compression's extension, as text files do. An Ion file is named for the compression the table's `write.compression` names.
 
 The PR targets Trino 475-SNAPSHOT. Three things differ in 484:
 
@@ -54,6 +54,21 @@ Athena reads Ion tables with the Ion Hive SerDe (`com.amazon.ion:ion-hive3-serde
 
 The SerDe's errors are reported as Athena reports them: `HIVE_BAD_DATA` messages start with `Error Parsing a column in the table: `, and `GENERIC_INTERNAL_ERROR` is an external error, not an internal one.
 
+## Writing as Athena does
+
+Athena writes Ion tables with the same SerDe. The patch changes the upstream PR's writer to write the same files, as recorded on Athena:
+
+- **Encoding:** binary Ion, or text Ion if the table's `ion.encoding` is `TEXT`. The SerDe reads the property as the name of its `IonEncoding` constant, in upper case. Any other value fails the write with `GENERIC_INTERNAL_ERROR: No enum constant com.amazon.ionhiveserde.configuration.IonEncoding.<value>`.
+- **Rows:** each row is an Ion stream of its own. In binary, each row has its own version marker and symbol table. In text, the rows follow each other without a separator, and without a version marker.
+- **Compression:** the codec the table's `write.compression` names, in any case: `NONE`, `GZIP`, `ZSTD`, `SNAPPY`, `BZIP2` or `LZ4`. Without the property, the session's `compression_codec` applies. Any other value fails the write with `HIVE_UNSUPPORTED_FORMAT: Failed to load compression codec: <value>`. Compressed files get the codec's extension.
+- **Nulls:** `ion.serialize_null` says how a NULL struct field or map value is written: `OMIT` (the default) leaves it out, `UNTYPED` writes `null`, and `TYPED` writes the typed null of the column's type, such as `null.int`. In a list, a NULL struct is written as a struct whose fields are all NULL, and a NULL list as an empty list. Other NULL elements are written as typed nulls. For a string or a blob, so does the SerDe; for other types, the SerDe fails. Any other `ion.serialize_null` fails with `No enum constant com.amazon.ionhiveserde.configuration.SerializeNullStrategy.<value>`.
+- **Timestamps:** written in milliseconds, at the offset `ion.timestamp.serialization_offset` gives (`Z` by default). The offset is `Z` or `[+|-]HH:MM`; without a sign it is positive. Other values fail with the SerDe's `GENERIC_INTERNAL_ERROR` messages. A `date` is written as a timestamp of day precision.
+- **Decimals:** written as Hive holds them, without trailing zeros in the fraction.
+- **Maps:** a map whose keys are not strings fails with the `ClassCastException` of the SerDe's cast of their object inspector to a string one.
+- **Columns:** `ion.<column>.serialize_as` is ignored.
+
+The writer properties are read when a write opens its first file, so a write of no rows succeeds whatever they hold.
+
 ## Building
 
 ```
@@ -64,7 +79,7 @@ git status    # no changes: the build reproduced the committed jars
 The first run caches its downloads in `build/`. The Hive plugin ZIP is about 230 MB. The build requires Python 3.9 or later.
 
 1. Downloads the official `trino-hive-484.zip`, the four Trino sources the patch changes, the two Ion jars, three compile-time dependencies from Maven Central and Temurin JDK 25.0.5+8. Each download is pinned by its SHA-256.
-2. Applies the patch and compiles the 12 changed and new sources with `javac --release 25 -g -parameters`. The compile-time dependencies supplement the plugin ZIP with Trino SPI, Airlift Slice and Jackson annotations.
+2. Applies the patch and compiles the 14 changed and new sources with `javac --release 25 -g -parameters`. The compile-time dependencies supplement the plugin ZIP with Trino SPI, Airlift Slice and Jackson annotations.
 3. Replaces the compiled classes in the two Hive plugin jars with Python's standard `zipfile` module. The entry contents outside the replaced classes are preserved. Fixed timestamps and uncompressed entries keep the build independent of the local zlib. The resulting jars total about 5 MB.
 
 Recompiling only these classes is safe:
